@@ -8,7 +8,7 @@
 @endif
 
 <h1 class="gv-page-title">Historique des opérations</h1>
-<p class="gv-page-sub">Dépotages et chargements enregistrés dans le système.</p>
+<p class="gv-page-sub">Dépotages, chargements et cessions enregistrés dans le système.</p>
 
 <div class="gv-section-title" style="margin:24px 0 12px;">Dépotages</div>
 <div class="gv-table-wrap">
@@ -31,7 +31,7 @@
                     <td>{{ $d->date_operation->format('d/m/Y H:i') }}</td>
                     <td>{{ $d->numero_depotage }}</td>
                     <td>{{ $d->fournisseur }}</td>
-                    <td style="text-transform:uppercase;">{{ $d->produit->name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $d->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($d->volume_brut) }}</td>
                     <td>{{ $d->cuve->nom ?? '—' }}</td>
                     <td>
@@ -79,7 +79,7 @@
                     <td>{{ $c->date_operation->format('d/m/Y H:i') }}</td>
                     <td>{{ $c->numero_chargement }}</td>
                     <td>{{ $c->client_nom }}</td>
-                    <td style="text-transform:uppercase;">{{ $c->produit->name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($c->volume_brut) }}</td>
                     <td>{{ $c->cuve->nom ?? '—' }}</td>
                 </tr>
@@ -90,4 +90,49 @@
     </table>
 </div>
 <div style="margin-top:12px;">{{ $chargements->links() }}</div>
+
+<div class="gv-section-title" style="margin:32px 0 12px;">Cessions</div>
+<div class="gv-table-wrap">
+    <table class="gv-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>N°</th>
+                <th>Cédant</th>
+                <th>Produit</th>
+                <th>Volume (L)</th>
+                <th>Cuve</th>
+                <th>Bénéficiaire</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($cessions as $c)
+                <tr>
+                    <td>{{ $c->date_cession->format('d/m/Y H:i') }}</td>
+                    <td>{{ $c->numero_cession }}</td>
+                    <td>{{ $c->cedant->company_name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->produit->nom ?? '—' }}</td>
+                    <td>{{ $fmt($c->volume) }}</td>
+                    <td>{{ $c->cuve->nom ?? $c->cuve->code ?? '—' }}</td>
+                    <td>{{ $c->beneficiaire->company_name ?? '—' }}</td>
+                    <td>
+                        @if($c->status === 'pending')
+                            <span class="gv-badge pending">En attente</span>
+                        @elseif($c->status === 'completed')
+                            <span class="gv-badge ok">Complété</span>
+                        @elseif($c->status === 'cancelled')
+                            <span class="gv-badge" style="background:#6b7280;color:#fff;">Annulé</span>
+                        @else
+                            <span class="gv-badge pending">{{ ucfirst($c->status) }}</span>
+                        @endif
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="8" style="text-align:center;color:#6b7280;">Aucune cession.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+<div style="margin-top:12px;">{{ $cessions->links() }}</div>
 @endsection

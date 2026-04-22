@@ -34,7 +34,7 @@
                     <select name="produit_id" required>
                         <option value="">Choisir un produit</option>
                         @foreach($produits as $p)
-                            <option value="{{ $p->id }}" @selected(old('produit_id') == $p->id)>{{ $p->name }}</option>
+                            <option value="{{ $p->id }}" @selected(old('produit_id') == $p->id)>{{ $p->nom }}</option>
                         @endforeach
                     </select>
                 </div>

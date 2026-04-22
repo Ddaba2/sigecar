@@ -49,8 +49,9 @@ class GestionnaireController extends Controller
     {
         $depotages = Depotage::with(['produit', 'cuve'])->latest()->paginate(10);
         $chargements = Chargement::with(['produit', 'cuve'])->latest()->paginate(10);
+        $cessions = Cession::with(['produit', 'cuve', 'cedant', 'beneficiaire'])->latest()->paginate(10);
 
-        return view('gestionnaire.operations', compact('depotages', 'chargements'));
+        return view('gestionnaire.operations', compact('depotages', 'chargements', 'cessions'));
     }
 
     /**
@@ -457,38 +458,23 @@ class GestionnaireController extends Controller
         ));
     }
 
-    /**
-     * Agrégats du rapport par famille de produit (types en base).
-     *
-     * @param  \Illuminate\Support\Collection<int, Cuve>  $cuves
-     * @return list<array{title: string, badge: string, entrees_jour: int, sorties_jour: int, stock_cuves: int, capacite_totale: int, pct_remplissage: int}>
-     */
     protected function buildRapportFamilles(Carbon $day, $cuves): array
     {
-        $configs = [
-            ['title' => 'Essence', 'badge' => 'SUPER', 'types' => ['essence']],
-            ['title' => 'Gasoil', 'badge' => 'DIESEL', 'types' => ['gasoil', 'marine']],
-            ['title' => 'Jet A1', 'badge' => 'AV-FUEL', 'types' => ['jet_a1']],
-        ];
+        $produits = \App\Models\Produit::where('status', 'active')->get();
 
         $out = [];
-        foreach ($configs as $cfg) {
-            $cuveList = $cuves->filter(fn (Cuve $c) => in_array($c->produit->type ?? '', $cfg['types'], true));
-            $produitIds = $cuveList->pluck('produit_id')->unique()->values();
+        foreach ($produits as $produit) {
+            $cuveList = $cuves->filter(fn (Cuve $c) => $c->produit_id === $produit->id);
 
-            $entrees = $produitIds->isEmpty()
-                ? 0
-                : (int) Depotage::query()
-                    ->whereDate('date_operation', $day)
-                    ->whereIn('produit_id', $produitIds)
-                    ->sum('volume_corrige');
+            $entrees = (int) Depotage::query()
+                ->whereDate('date_operation', $day)
+                ->where('produit_id', $produit->id)
+                ->sum('volume_corrige');
 
-            $sorties = $produitIds->isEmpty()
-                ? 0
-                : (int) Chargement::query()
-                    ->whereDate('date_operation', $day)
-                    ->whereIn('produit_id', $produitIds)
-                    ->sum('volume_corrige');
+            $sorties = (int) Chargement::query()
+                ->whereDate('date_operation', $day)
+                ->where('produit_id', $produit->id)
+                ->sum('volume_corrige');
 
             $stockCuves = (int) $cuveList->sum('niveau_actuel');
             $capSum = (int) $cuveList->sum('capacite_totale');
@@ -496,8 +482,8 @@ class GestionnaireController extends Controller
             $pct = $cuveList->isEmpty() ? 0 : min(100, (int) round(($stockCuves / $cap) * 100));
 
             $out[] = [
-                'title' => $cfg['title'],
-                'badge' => $cfg['badge'],
+                'title' => $produit->nom,
+                'badge' => $produit->code ?? strtoupper($produit->type ?? substr($produit->nom, 0, 5)),
                 'entrees_jour' => $entrees,
                 'sorties_jour' => $sorties,
                 'stock_cuves' => $stockCuves,

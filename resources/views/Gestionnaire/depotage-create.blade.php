@@ -34,7 +34,7 @@
                     <select name="produit_id" id="dep-produit" required>
                         <option value="">Choisir un produit</option>
                         @foreach($produits as $p)
-                            <option value="{{ $p->id }}" @selected(old('produit_id') == $p->id)>{{ $p->name }}</option>
+                            <option value="{{ $p->id }}" @selected(old('produit_id') == $p->id)>{{ $p->nom }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -108,7 +108,7 @@
                         <select name="creux[0][produit_id]" class="creux-produit">
                             <option value="">Même que l'opération</option>
                             @foreach($produits as $p)
-                                <option value="{{ $p->id }}">{{ $p->name }}</option>
+                                <option value="{{ $p->id }}">{{ $p->nom }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -183,7 +183,7 @@
                 <select name="creux[${creuxIndex}][produit_id]" class="creux-produit">
                     <option value="">Même que l'opération</option>
                     @foreach($produits as $p)
-                    <option value="{{ $p->id }}">{{ $p->name }}</option>
+                    <option value="{{ $p->id }}">{{ $p->nom }}</option>
                     @endforeach
                 </select>
             </div>`;

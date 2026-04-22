@@ -60,7 +60,7 @@
                 <tr>
                     <td>{{ $c->code }}</td>
                     <td>{{ $c->nom }}</td>
-                    <td style="text-transform:uppercase;">{{ $c->produit->name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($c->niveau_actuel) }}</td>
                     <td>{{ $fmt($c->capacite_totale) }}</td>
                     <td>{{ $pct }} %</td>

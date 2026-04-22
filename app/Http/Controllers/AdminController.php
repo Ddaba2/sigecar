@@ -30,6 +30,7 @@ class AdminController extends Controller
         $totalUsers = User::count();
         $activeUsers = User::where('status', 'active')->count();
         $inactiveUsers = User::where('status', 'inactive')->count();
+        $blockedUsers = User::where('status', 'blocked')->count();
 
         // Niveaux de stock par produit
         $stockLevels = Produit::with('cuves')->get()->map(function ($produit) {
@@ -71,7 +72,7 @@ class AdminController extends Controller
 
         $operations = $depotages->concat($chargements)->sortByDesc('date')->take(5);
 
-        return view('Admin.dashboard', compact('totalUsers', 'activeUsers', 'inactiveUsers', 'stockLevels', 'operations'));
+        return view('Admin.dashboard', compact('totalUsers', 'activeUsers', 'inactiveUsers', 'blockedUsers', 'stockLevels', 'operations'));
     }
 
     public function users()

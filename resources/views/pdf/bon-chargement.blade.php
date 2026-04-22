@@ -80,7 +80,7 @@
             <div class="box">
                 <strong>Détails du produit et compartiments</strong>
                 <span>Produit</span>
-                <strong>{{ $chargement->produit->name ?? '—' }}</strong>
+                <strong>{{ $chargement->produit->nom ?? '—' }}</strong>
                 <span>Cuve source</span>
                 <strong>{{ $chargement->cuve->nom ?? $chargement->cuve->code ?? '—' }}</strong>
             </div>
@@ -99,7 +99,7 @@
             <tbody>
                 <tr>
                     <td>C1</td>
-                    <td>{{ $chargement->produit->name ?? '—' }}</td>
+                    <td>{{ $chargement->produit->nom ?? '—' }}</td>
                     <td>{{ number_format($chargement->volume_brut, 0, ',', ' ') }}</td>
                     <td>{{ $chargement->temperature }}</td>
                     <td>{{ number_format($chargement->volume_corrige, 0, ',', ' ') }}</td>

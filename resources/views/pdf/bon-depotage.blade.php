@@ -60,7 +60,7 @@
             <div class="box">
                 <strong>Informations générales</strong>
                 <span>Produit</span>
-                <strong>{{ $depotage->produit->name ?? '—' }}</strong>
+                <strong>{{ $depotage->produit->nom ?? '—' }}</strong>
                 <span>Marketeur</span>
                 <strong>{{ $depotage->fournisseur }}</strong>
                 <span>Fournisseur</span>
@@ -129,7 +129,7 @@
                     @foreach($depotage->operationsCreux as $c)
                         <tr>
                             <td>{{ $c->numero_creux }}</td>
-                            <td>{{ $c->produit->name ?? '—' }}</td>
+                            <td>{{ $c->produit->nom ?? '—' }}</td>
                             <td>{{ number_format($c->capacite, 0, ',', ' ') }}</td>
                             <td>{{ $depotage->temperature }} °C</td>
                             <td>{{ number_format($c->volume, 0, ',', ' ') }}</td>
