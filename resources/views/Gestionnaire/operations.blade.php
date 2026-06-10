@@ -8,7 +8,7 @@
 @endif
 
 <h1 class="gv-page-title">Historique des opérations</h1>
-<p class="gv-page-sub">Dépotages et chargements enregistrés dans le système.</p>
+<p class="gv-page-sub">Dépotages, chargements et cessions enregistrés dans le système.</p>
 
 <div class="gv-section-title" style="margin:24px 0 12px;">Dépotages</div>
 <div class="gv-table-wrap">
@@ -90,4 +90,35 @@
     </table>
 </div>
 <div style="margin-top:12px;">{{ $chargements->links() }}</div>
+
+<div class="gv-section-title" style="margin:32px 0 12px;">Cessions</div>
+<div class="gv-table-wrap">
+    <table class="gv-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>SOCIÉTÉ (cédant)</th>
+                <th>Produit</th>
+                <th>Volume (L)</th>
+                <th>Cuve</th>
+                <th>Bénéficiaire</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($cessions as $c)
+                <tr>
+                    <td>{{ $c->date_cession->format('d/m/Y H:i') }}</td>
+                    <td>{{ $c->cedant->company_name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->produit->name ?? '—' }}</td>
+                    <td>{{ $fmt($c->volume) }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->cuve->nom ?? $c->cuve->code ?? '—' }}</td>
+                    <td>{{ $c->beneficiaire->company_name ?? '—' }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="6" style="text-align:center;color:#6b7280;">Aucune cession.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+<div style="margin-top:12px;">{{ $cessions->links() }}</div>
 @endsection

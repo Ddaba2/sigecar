@@ -6,7 +6,7 @@
 <div class="login-page">
     <div class="login-card">
         <img src="{{ asset('images/logo 1.png') }}" alt="SIGECAR" class="login-logo">
-        <h1 class="login-brand-title">SIGECAR</h1>
+
 
         @if($errors->any())
             <div class="login-error">{{ $errors->first() }}</div>
@@ -48,7 +48,7 @@
     .login-logo {
         width: 100px;
         height: auto;
-        margin: 0 auto 12px;
+        margin: 0 auto 30px;
         display: block;
     }
     .login-brand-title {

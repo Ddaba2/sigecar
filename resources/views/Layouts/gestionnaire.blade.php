@@ -629,6 +629,10 @@
         </div>
 
         <nav class="gv-nav">
+            <a href="{{ route('gestionnaire.stocks') }}" class="@if(request()->routeIs('gestionnaire.stocks') || request()->routeIs('gestionnaire.stocks.tous') || request()->routeIs('gestionnaire.dashboard')) gv-nav-active @endif">
+                <i class="fas fa-gas-pump"></i>
+                Stock &amp; Douane
+            </a>
             <a href="{{ route('gestionnaire.chargement.create') }}" class="@if(request()->routeIs('gestionnaire.chargement.create')) gv-nav-active @endif">
                 <i class="fas fa-truck"></i>
                 Chargement
@@ -636,10 +640,6 @@
             <a href="{{ route('gestionnaire.depotage.create') }}" class="@if(request()->routeIs('gestionnaire.depotage.create')) gv-nav-active @endif">
                 <i class="fas fa-angles-down"></i>
                 Dépotage
-            </a>
-            <a href="{{ route('gestionnaire.stocks') }}" class="@if(request()->routeIs('gestionnaire.stocks') || request()->routeIs('gestionnaire.stocks.tous') || request()->routeIs('gestionnaire.dashboard')) gv-nav-active @endif">
-                <i class="fas fa-gas-pump"></i>
-                Stock &amp; Douane
             </a>
             <a href="{{ route('gestionnaire.cession.create') }}" class="@if(request()->routeIs('gestionnaire.cession.create')) gv-nav-active @endif">
                 <i class="fas fa-right-left"></i>

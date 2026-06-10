@@ -1,9 +1,7 @@
 @extends('layouts.gestionnaire')
 
 @section('gestionnaire-content')
-<p class="gv-breadcrumb">OPÉRATIONS / ENREGISTREMENT CHARGEMENT</p>
-<h1 class="gv-page-title">Formulaire de chargement</h1>
-<p class="gv-page-sub">Enregistrez une sortie de produits pétroliers et générez le bon de chargement.</p>
+@php $fmt = fn ($n) => number_format((float) $n, 0, ',', ' '); @endphp
 
 @if(session('success'))
     <div class="gv-alert gv-alert-success">{{ session('success') }}</div>
@@ -14,6 +12,47 @@
 @if($errors->any())
     <div class="gv-alert gv-alert-error">{{ $errors->first() }}</div>
 @endif
+
+<div class="gv-section-head" style="margin-top:0;">
+    <div class="gv-section-title">
+        <i class="fas fa-clock-rotate-left"></i>
+        HISTORIQUE DE CHARGEMENT
+    </div>
+    <a href="{{ route('gestionnaire.operations') }}" class="gv-btn-blue" style="background:#fff;color:var(--gv-blue)!important;border:1px solid var(--gv-blue);">
+        Voir toutes les opérations <i class="fas fa-arrow-right"></i>
+    </a>
+</div>
+
+<div class="gv-table-wrap" style="margin-bottom:32px;">
+    <table class="gv-table">
+        <thead>
+            <tr>
+                <th>DATE &amp; HEURE</th>
+                <th>CLIENT</th>
+                <th>PRODUIT</th>
+                <th>VOLUME</th>
+                <th>CUVE</th>
+                <th>N°</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($recentChargements as $c)
+                <tr>
+                    <td>{{ $c->date_operation->format('d/m/Y H:i') }}</td>
+                    <td>{{ $c->client_nom }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->produit->name ?? '—' }}</td>
+                    <td>{{ $fmt($c->volume_brut) }} L</td>
+                    <td style="text-transform:uppercase;">{{ $c->cuve->nom ?? $c->cuve->code ?? '—' }}</td>
+                    <td>{{ $c->numero_chargement }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="6" style="text-align:center;color:#6b7280;">Aucun chargement récent.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
+<h2 class="gv-page-title" style="font-size:1.35rem;">Nouvel enregistrement</h2>
 
 <form method="POST" action="{{ route('gestionnaire.chargement.store') }}">
     @csrf

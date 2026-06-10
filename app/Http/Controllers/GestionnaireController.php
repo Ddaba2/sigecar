@@ -49,8 +49,9 @@ class GestionnaireController extends Controller
     {
         $depotages = Depotage::with(['produit', 'cuve'])->latest()->paginate(10);
         $chargements = Chargement::with(['produit', 'cuve'])->latest()->paginate(10);
+        $cessions = Cession::with(['cedant', 'beneficiaire', 'produit', 'cuve'])->latest()->paginate(10);
 
-        return view('gestionnaire.operations', compact('depotages', 'chargements'));
+        return view('gestionnaire.operations', compact('depotages', 'chargements', 'cessions'));
     }
 
     /**
@@ -63,7 +64,12 @@ class GestionnaireController extends Controller
         $cuves = Cuve::with('produit')->get();
         $marketeurs = Marketeur::where('status', 'active')->get();
 
-        return view('gestionnaire.depotage-create', compact('produits', 'cuves', 'marketeurs'));
+        $recentDepotages = Depotage::with(['produit', 'cuve'])
+            ->latest()
+            ->take(12)
+            ->get();
+
+        return view('gestionnaire.depotage-create', compact('produits', 'cuves', 'marketeurs', 'recentDepotages'));
     }
 
     public function storeDepotage(Request $request)
@@ -186,10 +192,7 @@ class GestionnaireController extends Controller
     public function stocksTous()
     {
         $cuves = Cuve::with('produit')->orderBy('nom')->orderBy('code')->get();
-        $totalCapacite = $cuves->sum('capacite_totale');
-        $totalStock = $cuves->sum('niveau_actuel');
-        $sousDouaneVol = Cuve::where('type_douane', 'sous_douane')->sum('niveau_actuel');
-        $acquitteVol = Cuve::where('type_douane', 'acquitte')->sum('niveau_actuel');
+        extract($this->computeStockDouaneKpis());
 
         return view('gestionnaire.stocks-tous', compact(
             'cuves',
@@ -206,7 +209,12 @@ class GestionnaireController extends Controller
         $cuves = Cuve::with('produit')->get();
         $marketeurs = Marketeur::where('status', 'active')->get();
 
-        return view('gestionnaire.chargement-create', compact('produits', 'cuves', 'marketeurs'));
+        $recentChargements = Chargement::with(['produit', 'cuve'])
+            ->latest()
+            ->take(12)
+            ->get();
+
+        return view('gestionnaire.chargement-create', compact('produits', 'cuves', 'marketeurs', 'recentChargements'));
     }
 
     public function storeChargement(Request $request)
@@ -364,13 +372,21 @@ class GestionnaireController extends Controller
     /**
      * @return \Illuminate\View\View
      */
+    protected function computeStockDouaneKpis(): array
+    {
+        $totalCapacite = (int) Cuve::sum('capacite_totale');
+        $totalStock = (int) Cuve::sum('niveau_actuel');
+        $sousDouaneVol = (int) Depotage::where('status', 'sous_douane')->sum('volume_corrige');
+        $acquitteVol = max(0, $totalStock - $sousDouaneVol);
+
+        return compact('totalCapacite', 'totalStock', 'sousDouaneVol', 'acquitteVol');
+    }
+
     protected function stockSupervisionPage(string $pageTitle)
     {
         $cuves = Cuve::with('produit')->get();
-        $totalCapacite = $cuves->sum('capacite_totale');
-        $totalStock = $cuves->sum('niveau_actuel');
-        $sousDouaneVol = Cuve::where('type_douane', 'sous_douane')->sum('niveau_actuel');
-        $acquitte = Cuve::where('type_douane', 'acquitte')->sum('niveau_actuel');
+        extract($this->computeStockDouaneKpis());
+        $acquitte = $acquitteVol;
         $alertes = Cuve::whereRaw('niveau_actuel <= seuil_alerte_bas OR niveau_actuel >= seuil_alerte_haut')->get();
 
         $recentDepotages = Depotage::with(['produit', 'cuve'])->latest()->take(8)->get();

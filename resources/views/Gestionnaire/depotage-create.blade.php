@@ -1,9 +1,7 @@
 @extends('layouts.gestionnaire')
 
 @section('gestionnaire-content')
-<p class="gv-breadcrumb">OPÉRATIONS / ENREGISTREMENT DÉPOTAGE</p>
-<h1 class="gv-page-title">Formulaire de Réception</h1>
-<p class="gv-page-sub">Veuillez renseigner les données pour la mise sous douane du produit pétrolier réceptionné.</p>
+@php $fmt = fn ($n) => number_format((float) $n, 0, ',', ' '); @endphp
 
 @if(session('success'))
     <div class="gv-alert gv-alert-success">{{ session('success') }}</div>
@@ -14,6 +12,47 @@
 @if($errors->any())
     <div class="gv-alert gv-alert-error">{{ $errors->first() }}</div>
 @endif
+
+<div class="gv-section-head" style="margin-top:0;">
+    <div class="gv-section-title">
+        <i class="fas fa-clock-rotate-left"></i>
+        HISTORIQUE DE DÉPOTAGE
+    </div>
+    <a href="{{ route('gestionnaire.operations') }}" class="gv-btn-blue" style="background:#fff;color:var(--gv-blue)!important;border:1px solid var(--gv-blue);">
+        Voir toutes les opérations <i class="fas fa-arrow-right"></i>
+    </a>
+</div>
+
+<div class="gv-table-wrap" style="margin-bottom:32px;">
+    <table class="gv-table">
+        <thead>
+            <tr>
+                <th>DATE &amp; HEURE</th>
+                <th>FOURNISSEUR</th>
+                <th>PRODUIT</th>
+                <th>VOLUME</th>
+                <th>CUVE</th>
+                <th>N°</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($recentDepotages as $d)
+                <tr>
+                    <td>{{ $d->date_operation->format('d/m/Y H:i') }}</td>
+                    <td>{{ $d->fournisseur }}</td>
+                    <td style="text-transform:uppercase;">{{ $d->produit->name ?? '—' }}</td>
+                    <td>{{ $fmt($d->volume_brut) }} L</td>
+                    <td style="text-transform:uppercase;">{{ $d->cuve->nom ?? $d->cuve->code ?? '—' }}</td>
+                    <td>{{ $d->numero_depotage }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="6" style="text-align:center;color:#6b7280;">Aucun dépotage récent.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
+<h2 class="gv-page-title" style="font-size:1.35rem;">Nouvel enregistrement</h2>
 
 <form method="POST" action="{{ route('gestionnaire.depotage.store') }}" id="form-depotage">
     @csrf
