@@ -40,7 +40,7 @@
                 <tr>
                     <td>{{ $c->date_cession->format('d/m/Y H:i') }}</td>
                     <td>{{ $c->cedant->company_name ?? '—' }}</td>
-                    <td style="text-transform:uppercase;">{{ $c->produit->name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($c->volume) }} L</td>
                     <td style="text-transform:uppercase;">{{ $c->cuve->nom ?? $c->cuve->code ?? '—' }}</td>
                     <td>{{ $c->beneficiaire->company_name ?? '—' }}</td>
@@ -71,7 +71,7 @@
                 <select name="produit_id" id="ces-produit" required>
                     <option value="">Sélectionner</option>
                     @foreach($produits as $p)
-                        <option value="{{ $p->id }}" @selected(old('produit_id') == $p->id)>{{ $p->name }}</option>
+                        <option value="{{ $p->id }}" @selected(old('produit_id') == $p->id)>{{ $p->nom }}</option>
                     @endforeach
                 </select>
             </div>

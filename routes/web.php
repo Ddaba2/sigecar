@@ -75,5 +75,9 @@ Route::prefix('marketeur')->name('marketeur.')->middleware(['auth', 'role:market
     Route::get('/', [MarketeurController::class, 'dashboard'])->name('dashboard');
     Route::get('/operations', [MarketeurController::class, 'operations'])->name('operations');
     Route::get('/cessions', [MarketeurController::class, 'cessions'])->name('cessions');
+    Route::get('/cessions/nouvelle', [MarketeurController::class, 'createCession'])->name('cession.create');
+    Route::post('/cessions', [MarketeurController::class, 'storeCession'])->name('cession.store');
     Route::get('/cessions/{id}', [MarketeurController::class, 'showCession'])->name('cession.show');
+    Route::get('/parametres', [MarketeurController::class, 'settings'])->name('settings');
+    Route::get('/api/cuve-stock/{id}', [MarketeurController::class, 'cuveStock'])->name('api.cuve-stock');
 });

@@ -15,8 +15,17 @@
 
 <div class="gv-kpi-grid">
     <div class="gv-kpi">
-        <div class="gv-kpi-label">CAPACITÉ TOTALE</div>
+        <div class="gv-kpi-label">CAPACITÉ TOTALE DES CUVES</div>
         <div class="gv-kpi-value">{{ $fmt($totalCapacite) }} L</div>
+        <div class="gv-kpi-meta" style="color:#6b7280;"><i class="fas fa-warehouse"></i> Capacité maximale</div>
+    </div>
+    <div class="gv-kpi">
+        <div class="gv-kpi-label">VOLUME TOTAL STOCKÉ</div>
+        <div class="gv-kpi-value" style="color:#007bff;">{{ $fmt($totalStock) }} L</div>
+        <div class="gv-kpi-meta" style="color:#007bff;">
+            <i class="fas fa-chart-line"></i> 
+            {{ $totalCapacite > 0 ? round(($totalStock / $totalCapacite) * 100) : 0 }}% de remplissage
+        </div>
     </div>
     <div class="gv-kpi">
         <div class="gv-kpi-label">STOCK ACQUITTÉ</div>
@@ -63,7 +72,7 @@
             <div class="gv-tank-head">
                 <div>
                     <div class="gv-tank-id">{{ $cuve->nom ?? $cuve->code }}</div>
-                    <div class="gv-tank-prod">{{ strtoupper($cuve->produit->name ?? '—') }}</div>
+                    <div class="gv-tank-prod">{{ strtoupper($cuve->produit->nom ?? '—') }}</div>
                 </div>
                 <span style="color:#9ca3af;"><i class="fas fa-ellipsis-vertical"></i></span>
             </div>
@@ -105,7 +114,7 @@
                 <tr>
                     <td>{{ $row->date_operation->format('d M Y — H:i') }}</td>
                     <td>{{ $row->fournisseur }}</td>
-                    <td style="text-transform:uppercase;">{{ $row->produit->name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $row->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($row->volume_brut) }} L</td>
                     <td>{{ $row->cuve->nom ?? $row->cuve->code ?? '—' }}</td>
                     <td>

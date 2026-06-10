@@ -118,18 +118,18 @@ class MarketeurFlowTest extends TestCase
 
         $dashboardResponse = $this->actingAs($user)->get('/marketeur');
         $dashboardResponse->assertStatus(200);
-        $dashboardResponse->assertSee('Tableau de bord');
-        $dashboardResponse->assertSee('Niveaux de stock par produit');
+        $dashboardResponse->assertSee('Litre totale disponible');
+        $dashboardResponse->assertSee('Dernières Opérations');
 
         $operationsResponse = $this->actingAs($user)->get('/marketeur/operations');
         $operationsResponse->assertStatus(200);
-        $operationsResponse->assertSee('Historiques des dépôtages');
-        $operationsResponse->assertSee('Historiques des chargements');
+        $operationsResponse->assertSee('Mes Opérations');
+        $operationsResponse->assertSee('TOTAL DEPOTAGES (MOIS)');
 
         $cessionsResponse = $this->actingAs($user)->get('/marketeur/cessions');
         $cessionsResponse->assertStatus(200);
-        $cessionsResponse->assertSee('Cessions envoyées');
-        $cessionsResponse->assertSee('Cessions reçues');
+        $cessionsResponse->assertSee('Mes Cessions');
+        $cessionsResponse->assertSee('TOTAL TRANSFÉRER (MOIS)');
 
         $detailResponse = $this->actingAs($user)->get('/marketeur/cessions/' . $cession->id);
         $detailResponse->assertStatus(200);

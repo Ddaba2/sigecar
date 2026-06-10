@@ -70,7 +70,7 @@
                 <tr>
                     <td>{{ $d->date_operation->format('H:i') }}</td>
                     <td>{{ $d->fournisseur }}</td>
-                    <td style="text-transform:uppercase;">{{ $d->produit->name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $d->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($d->volume_brut) }}</td>
                     <td>
                         @if($d->status === 'acquitte')
@@ -103,7 +103,7 @@
                 <tr>
                     <td>{{ $c->date_operation->format('H:i') }}</td>
                     <td>{{ $c->client_nom }}</td>
-                    <td style="text-transform:uppercase;">{{ $c->produit->name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($c->volume_brut) }}</td>
                 </tr>
             @empty
@@ -129,7 +129,7 @@
                 <tr>
                     <td>{{ $c->date_cession->format('H:i') }}</td>
                     <td>{{ $c->beneficiaire->company_name ?? '—' }}</td>
-                    <td style="text-transform:uppercase;">{{ $c->produit->name ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $c->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($c->volume) }}</td>
                 </tr>
             @empty

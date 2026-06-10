@@ -1,120 +1,107 @@
 @extends('layouts.marketeur')
 
-@section('pageTitle', 'Gestion du transport')
-
 @section('marketeur-content')
-<div class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-            <h1 class="text-3xl font-bold text-slate-900">Gestion du transport</h1>
-            <p class="mt-2 text-sm text-slate-500">Suivi de vos dépôtages et chargements.</p>
-        </div>
-        <a href="{{ route('marketeur.dashboard') }}" class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-200/10 hover:bg-slate-800">
-            Retour au tableau de bord
-        </a>
+@php $fmt = fn ($n) => number_format((float) $n, 0, ',', ' '); @endphp
+
+<div class="gv-section-head" style="margin-top:0;align-items:flex-start;">
+    <div>
+        <p class="gv-breadcrumb">Gestion des flux</p>
+        <h1 class="gv-page-title">Mes Opérations</h1>
     </div>
+    <div class="mk-page-actions">
+        <a href="#" class="gv-btn-blue gv-btn-green" onclick="window.print();return false;"><i class="fas fa-download"></i> Télécharger PDF</a>
+        <a href="{{ route('marketeur.operations', request()->query()) }}" class="gv-btn-blue"><i class="fas fa-file-excel"></i> Télécharger .xlsx</a>
+    </div>
+</div>
 
-    <section class="rounded-[32px] border border-slate-200 bg-white p-6 shadow-lg">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <h2 class="text-xl font-semibold text-slate-950">Historique des opérations</h2>
-                <p class="mt-1 text-sm text-slate-500">Dépôtages et chargements réalisés pour votre entreprise.</p>
-            </div>
-            <div class="flex flex-wrap gap-3">
-                <div class="inline-flex items-center gap-3 rounded-3xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-200 text-slate-900">D</span>
-                    {{ $depotages->total() }} dépôtages
-                </div>
-                <div class="inline-flex items-center gap-3 rounded-3xl bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700">
-                    <span class="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-200 text-slate-900">C</span>
-                    {{ $chargements->total() }} chargements
-                </div>
-            </div>
-        </div>
+<form method="GET" action="{{ route('marketeur.operations') }}" class="mk-filter-bar">
+    <div class="mk-filter-field">
+        <label>PERIODE</label>
+        <select name="periode">
+            <option value="">Toutes</option>
+            <option value="7" @selected(request('periode') == '7')>7 derniers jours</option>
+            <option value="30" @selected(request('periode', '30') == '30')>Derniers 30 jours</option>
+            <option value="90" @selected(request('periode') == '90')>90 derniers jours</option>
+        </select>
+    </div>
+    <div class="mk-filter-field">
+        <label>TYPE D'OPERATION</label>
+        <select name="type">
+            <option value="tous" @selected(request('type', 'tous') == 'tous')>Tous les types</option>
+            <option value="depotage" @selected(request('type') == 'depotage')>Dépotage</option>
+            <option value="chargement" @selected(request('type') == 'chargement')>Chargement</option>
+        </select>
+    </div>
+    <div class="mk-filter-field">
+        <label>PRODUIT</label>
+        <select name="produit_id">
+            <option value="">Tous les produits</option>
+            @foreach($produits as $p)
+                <option value="{{ $p->id }}" @selected(request('produit_id') == $p->id)>{{ $p->name }}</option>
+            @endforeach
+        </select>
+    </div>
+    <button type="submit" class="gv-btn-blue" style="margin-left:auto;"><i class="fas fa-magnifying-glass"></i> Filtrer les résultats</button>
+</form>
 
-        <div class="mt-8 grid gap-6 xl:grid-cols-2">
-            <div class="rounded-[28px] bg-slate-50 p-5 shadow-sm">
-                <div class="flex items-center justify-between gap-3">
-                    <div>
-                        <h3 class="text-base font-semibold text-slate-900">Historiques des dépôtages</h3>
-                        <p class="mt-2 text-sm text-slate-500">Dépôts de carburant liés à votre compte.</p>
-                    </div>
-                    <span class="text-sm font-semibold text-slate-700">{{ $depotages->total() }} résultats</span>
-                </div>
+<div class="gv-table-wrap">
+    <table class="gv-table">
+        <thead>
+            <tr>
+                <th>DATE &amp; HEURE</th>
+                <th>TYPE</th>
+                <th>PRODUIT</th>
+                <th>VOLUME BRUT</th>
+                <th>VOL. CORRIGE 15°c</th>
+                <th>STATUS</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($operations as $op)
+                <tr>
+                    <td>{{ $op['date']?->format('d M Y H:i') ?? '—' }}</td>
+                    <td><i class="fas {{ $op['type_icon'] }}" style="color:var(--gv-blue);margin-right:6px;"></i>{{ $op['type'] }}</td>
+                    <td><span class="mk-prod-pill">{{ $op['produit'] }}</span></td>
+                    <td><strong>{{ $fmt($op['volume_brut']) }}L</strong></td>
+                    <td>{{ $fmt($op['volume_corrige']) }}L</td>
+                    <td>
+                        @if(in_array($op['status'], ['acquitte', 'termine', 'confirmed', 'completed']))
+                            <span class="mk-status ok">Acquitté</span>
+                        @elseif($op['status'] === 'sous_douane')
+                            <span class="mk-status warn">Sous douane</span>
+                        @else
+                            <span class="mk-status pending">{{ ucfirst($op['status'] ?? 'En cours') }}</span>
+                        @endif
+                    </td>
+                </tr>
+            @empty
+                <tr><td colspan="6" style="text-align:center;color:#6b7280;">Aucune opération trouvée.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
 
-                <div class="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-                    <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                        <thead class="bg-slate-50 text-slate-600">
-                            <tr>
-                                <th class="px-4 py-3">Date</th>
-                                <th class="px-4 py-3">Produit</th>
-                                <th class="px-4 py-3">Volume</th>
-                                <th class="px-4 py-3">Cuve</th>
-                                <th class="px-4 py-3">Statut</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-200 bg-white">
-                            @forelse($depotages as $depotage)
-                                <tr class="hover:bg-slate-50">
-                                    <td class="px-4 py-4 text-slate-700">{{ optional($depotage->date_operation)->format('d M Y') ?? '-' }}</td>
-                                    <td class="px-4 py-4 text-slate-700">{{ $depotage->produit->nom ?? 'N/A' }}</td>
-                                    <td class="px-4 py-4 text-slate-700">{{ number_format($depotage->volume_brut, 0, ',', ' ') }} L</td>
-                                    <td class="px-4 py-4 text-slate-700">{{ $depotage->cuve->code ?? 'N/A' }}</td>
-                                    <td class="px-4 py-4">
-                                        <span class="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">{{ ucfirst($depotage->status ?? 'Validé') }}</span>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">Aucun dépôtage trouvé.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+@php
+    $fmtShort = fn ($n) => $n >= 1_000_000 ? round($n / 1_000_000, 1) . 'M' : ($n >= 1_000 ? round($n / 1_000) . 'K' : $fmt($n));
+    $sousPct = min(100, max(5, $sousDouaneActuel > 0 ? 35 : 5));
+@endphp
 
-            <div class="rounded-[28px] bg-slate-50 p-5 shadow-sm">
-                <div class="flex items-center justify-between gap-3">
-                    <div>
-                        <h3 class="text-base font-semibold text-slate-900">Historiques des chargements</h3>
-                        <p class="mt-2 text-sm text-slate-500">Chargements réalisés pour votre société.</p>
-                    </div>
-                    <span class="text-sm font-semibold text-slate-700">{{ $chargements->total() }} résultats</span>
-                </div>
-
-                <div class="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white">
-                    <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                        <thead class="bg-slate-50 text-slate-600">
-                            <tr>
-                                <th class="px-4 py-3">Date</th>
-                                <th class="px-4 py-3">Produit</th>
-                                <th class="px-4 py-3">Volume</th>
-                                <th class="px-4 py-3">Client</th>
-                                <th class="px-4 py-3">Statut</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-200 bg-white">
-                            @forelse($chargements as $chargement)
-                                <tr class="hover:bg-slate-50">
-                                    <td class="px-4 py-4 text-slate-700">{{ optional($chargement->date_operation)->format('d M Y') ?? '-' }}</td>
-                                    <td class="px-4 py-4 text-slate-700">{{ $chargement->produit->nom ?? 'N/A' }}</td>
-                                    <td class="px-4 py-4 text-slate-700">{{ number_format($chargement->volume_brut, 0, ',', ' ') }} L</td>
-                                    <td class="px-4 py-4 text-slate-700">{{ $chargement->client_nom ?? '-' }}</td>
-                                    <td class="px-4 py-4">
-                                        <span class="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">{{ ucfirst($chargement->status ?? 'Terminé') }}</span>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">Aucun chargement trouvé.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </section>
+<div class="mk-summary-grid">
+    <div class="mk-summary-card navy">
+        <i class="fas fa-download corner-icon"></i>
+        <div class="label">TOTAL DEPOTAGES (MOIS)</div>
+        <div class="value">{{ $fmtShort($totalDepotagesMois) }} Litres</div>
+    </div>
+    <div class="mk-summary-card light">
+        <i class="fas fa-upload corner-icon"></i>
+        <div class="label">TOTAL CHARGEMENTS (MOIS)</div>
+        <div class="value">{{ $fmtShort($totalChargementsMois) }} Litres</div>
+    </div>
+    <div class="mk-summary-card white">
+        <i class="fas fa-ban corner-icon" style="color:var(--gv-red);opacity:1;"></i>
+        <div class="label">SOUS DOUANE ACTUEL</div>
+        <div class="value">{{ $fmtShort($sousDouaneActuel) }} Litres</div>
+        <div class="progress"><div class="progress-fill" style="width:{{ $sousPct }}%;"></div></div>
+    </div>
 </div>
 @endsection

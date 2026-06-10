@@ -1,73 +1,46 @@
 @extends('layouts.marketeur')
 
 @section('marketeur-content')
-<div class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+@php $fmt = fn ($n) => number_format((float) $n, 0, ',', ' '); @endphp
+
+<p class="gv-breadcrumb">Gestion des flux</p>
+<div class="gv-section-head" style="margin-top:0;">
+    <h1 class="gv-page-title">Détail de la cession</h1>
+    <a href="{{ route('marketeur.cessions') }}" class="gv-btn-blue gv-btn-outline"><i class="fas fa-arrow-left"></i> Retour</a>
+</div>
+
+<div style="background:#fff;border-radius:14px;padding:28px 32px;box-shadow:0 2px 12px rgba(0,27,51,0.06);max-width:900px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
         <div>
-            <h1 class="text-3xl font-bold text-slate-900">Détail de la cession</h1>
-            <p class="mt-2 text-sm text-slate-500">Informations complètes sur cette transaction.</p>
+            <div style="font-size:0.72rem;font-weight:700;color:#6b7280;letter-spacing:0.08em;">N° CESSION</div>
+            <div style="font-size:1.2rem;font-weight:700;margin-top:6px;">{{ $cession->numero_cession ?? '—' }}</div>
         </div>
-        <a href="{{ route('marketeur.cessions') }}" class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-200/10 hover:bg-slate-800">
-            Retour à la liste
-        </a>
+        <div>
+            <div style="font-size:0.72rem;font-weight:700;color:#6b7280;letter-spacing:0.08em;">DATE</div>
+            <div style="margin-top:6px;">{{ $cession->date_cession->format('d M Y H:i') }}</div>
+        </div>
+        <div>
+            <div style="font-size:0.72rem;font-weight:700;color:#6b7280;letter-spacing:0.08em;">CÉDANT</div>
+            <div style="margin-top:6px;">{{ $cession->cedant->company_name ?? '—' }}</div>
+        </div>
+        <div>
+            <div style="font-size:0.72rem;font-weight:700;color:#6b7280;letter-spacing:0.08em;">BÉNÉFICIAIRE</div>
+            <div style="margin-top:6px;font-weight:700;">{{ $cession->beneficiaire->company_name ?? '—' }}</div>
+        </div>
     </div>
-
-    <section class="rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm">
-        <div class="grid gap-6 lg:grid-cols-2">
-            <div class="space-y-4">
-                <div>
-                    <p class="text-sm uppercase tracking-[.2em] text-slate-500">Cession</p>
-                    <h2 class="mt-2 text-xl font-semibold text-slate-900">{{ $cession->numero_cession ?? 'N° non disponible' }}</h2>
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <p class="text-xs uppercase tracking-[.2em] text-slate-500">Date</p>
-                        <p class="mt-2 text-sm text-slate-700">{{ optional($cession->date_cession)->format('d M Y H:i') ?? '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs uppercase tracking-[.2em] text-slate-500">Statut</p>
-                        <p class="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{{ ucfirst($cession->status ?? 'En attente') }}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div>
-                    <p class="text-xs uppercase tracking-[.2em] text-slate-500">Cédant</p>
-                    <p class="mt-2 text-sm text-slate-700">{{ $cession->cedant->company_name ?? 'N/A' }}</p>
-                </div>
-                <div>
-                    <p class="text-xs uppercase tracking-[.2em] text-slate-500">Bénéficiaire</p>
-                    <p class="mt-2 text-sm text-slate-700">{{ $cession->beneficiaire->company_name ?? 'N/A' }}</p>
-                </div>
-            </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        <div style="background:#eef2ff;border-radius:10px;padding:16px;">
+            <div style="font-size:0.72rem;font-weight:700;color:#6b7280;">PRODUIT</div>
+            <div style="margin-top:8px;"><span class="mk-prod-pill">{{ $cession->produit->name ?? '—' }}</span></div>
         </div>
-
-        <div class="mt-8 grid gap-6 lg:grid-cols-3">
-            <div class="rounded-3xl bg-slate-50 p-5">
-                <p class="text-xs uppercase tracking-[.2em] text-slate-500">Produit</p>
-                <p class="mt-3 text-lg font-semibold text-slate-900">{{ $cession->produit->nom ?? 'N/A' }}</p>
-            </div>
-            <div class="rounded-3xl bg-slate-50 p-5">
-                <p class="text-xs uppercase tracking-[.2em] text-slate-500">Volume</p>
-                <p class="mt-3 text-lg font-semibold text-slate-900">{{ number_format($cession->volume, 0, ',', ' ') }} L</p>
-            </div>
-            <div class="rounded-3xl bg-slate-50 p-5">
-                <p class="text-xs uppercase tracking-[.2em] text-slate-500">Cuve</p>
-                <p class="mt-3 text-lg font-semibold text-slate-900">{{ $cession->cuve->code ?? 'N/A' }}</p>
-            </div>
+        <div style="background:#eef2ff;border-radius:10px;padding:16px;">
+            <div style="font-size:0.72rem;font-weight:700;color:#6b7280;">VOLUME</div>
+            <div style="margin-top:8px;font-weight:700;">{{ $fmt($cession->volume) }} L</div>
         </div>
-
-        <div class="mt-8 grid gap-6 lg:grid-cols-2">
-            <div class="rounded-3xl bg-slate-50 p-6">
-                <p class="text-xs uppercase tracking-[.2em] text-slate-500">Prix unitaire</p>
-                <p class="mt-3 text-lg font-semibold text-slate-900">{{ number_format($cession->prix_unitaire, 2, ',', ' ') ?? '0,00' }} FCFA</p>
-            </div>
-            <div class="rounded-3xl bg-slate-50 p-6">
-                <p class="text-xs uppercase tracking-[.2em] text-slate-500">Montant total</p>
-                <p class="mt-3 text-lg font-semibold text-slate-900">{{ number_format($cession->montant_total, 2, ',', ' ') ?? '0,00' }} FCFA</p>
-            </div>
+        <div style="background:#eef2ff;border-radius:10px;padding:16px;">
+            <div style="font-size:0.72rem;font-weight:700;color:#6b7280;">CUVE</div>
+            <div style="margin-top:8px;">{{ $cession->cuve->nom ?? $cession->cuve->code ?? '—' }}</div>
         </div>
-    </section>
+    </div>
 </div>
 @endsection

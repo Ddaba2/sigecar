@@ -25,7 +25,7 @@
             <th>Bénéficiaire</th><td>{{ $cession->beneficiaire->company_name ?? '—' }}</td>
         </tr>
         <tr>
-            <th>Produit</th><td>{{ $cession->produit->name ?? '—' }}</td>
+            <th>Produit</th><td>{{ $cession->produit->nom ?? '—' }}</td>
         </tr>
         <tr>
             <th>Cuve</th><td>{{ $cession->cuve->nom ?? $cession->cuve->code ?? '—' }}</td>

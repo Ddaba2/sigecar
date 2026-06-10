@@ -1,97 +1,99 @@
 @extends('layouts.marketeur')
 
-@section('pageTitle', 'Gestion des cessions')
-
 @section('marketeur-content')
-<div class="space-y-8">
-    <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-            <h1 class="text-3xl font-bold text-slate-900">Gestion des cessions</h1>
-            <p class="mt-2 text-sm text-slate-500">Toutes vos cessions envoyées et reçues.</p>
-        </div>
-        <a href="{{ route('marketeur.dashboard') }}" class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-200/10 hover:bg-slate-800">
-            Retour au tableau de bord
-        </a>
+@php
+    $fmt = fn ($n) => number_format((float) $n, 0, ',', ' ');
+    $fmtShort = fn ($n) => $n >= 1_000 ? round($n / 1_000) . 'K' : $fmt($n);
+@endphp
+
+@if(session('success'))
+    <div class="gv-alert gv-alert-success">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+    <div class="gv-alert gv-alert-error">{{ session('error') }}</div>
+@endif
+
+<div class="gv-section-head" style="margin-top:0;align-items:flex-start;">
+    <div>
+        <p class="gv-breadcrumb">Gestion des flux</p>
+        <h1 class="gv-page-title">Mes Cessions</h1>
     </div>
+    <div class="mk-page-actions">
+        <a href="#" class="gv-btn-blue gv-btn-green" onclick="window.print();return false;"><i class="fas fa-download"></i> Télécharger PDF</a>
+        <a href="{{ route('marketeur.cessions', request()->query()) }}" class="gv-btn-blue"><i class="fas fa-file-excel"></i> Télécharger .xlsx</a>
+    </div>
+</div>
 
-    <div class="grid gap-6 xl:grid-cols-2">
-        <section class="rounded-[32px] border border-slate-200 bg-slate-50 p-6 shadow-lg">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <h2 class="text-xl font-semibold text-slate-950">Cessions envoyées</h2>
-                    <p class="mt-1 text-sm text-slate-500">Transferts réalisés depuis votre compte.</p>
-                </div>
-                <span class="text-sm font-semibold text-slate-700">{{ $cessionsEnvoyees->total() }} résultats</span>
-            </div>
+<form method="GET" action="{{ route('marketeur.cessions') }}" class="mk-filter-bar">
+    <div class="mk-filter-field">
+        <label>PERIODE</label>
+        <select name="periode">
+            <option value="">Toutes</option>
+            <option value="7" @selected(request('periode') == '7')>7 derniers jours</option>
+            <option value="30" @selected(request('periode') == '30')>30 derniers jours</option>
+            <option value="90" @selected(request('periode') == '90')>90 derniers jours</option>
+        </select>
+    </div>
+    <div class="mk-filter-field">
+        <label>TYPE D'OPERATION</label>
+        <select name="type" disabled>
+            <option>Transfert</option>
+        </select>
+    </div>
+    <div class="mk-filter-field">
+        <label>PRODUIT</label>
+        <select name="produit_id">
+            <option value="">Tous les produits</option>
+            @foreach($produits as $p)
+                <option value="{{ $p->id }}" @selected(request('produit_id') == $p->id)>{{ $p->name }}</option>
+            @endforeach
+        </select>
+    </div>
+    <button type="submit" class="gv-btn-blue" style="margin-left:auto;"><i class="fas fa-magnifying-glass"></i> Filtrer les résultats</button>
+</form>
 
-            <div class="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                    <thead class="bg-slate-100 text-slate-600">
-                        <tr>
-                            <th class="px-4 py-3">Date</th>
-                            <th class="px-4 py-3">Produit</th>
-                            <th class="px-4 py-3">Volume</th>
-                            <th class="px-4 py-3">Bénéficiaire</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-200 bg-white">
-                        @forelse($cessionsEnvoyees as $cession)
-                            <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-4 text-slate-700">{{ optional($cession->date_cession)->format('d M Y') ?? '-' }}</td>
-                                <td class="px-4 py-4 text-slate-700">{{ $cession->produit->nom ?? 'N/A' }}</td>
-                                <td class="px-4 py-4 text-slate-700">{{ number_format($cession->volume, 0, ',', ' ') }} L</td>
-                                <td class="px-4 py-4 text-slate-700">{{ $cession->beneficiaire->company_name ?? 'N/A' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="px-4 py-6 text-center text-sm text-slate-500">Aucune cession envoyée.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+<div class="gv-table-wrap">
+    <table class="gv-table">
+        <thead>
+            <tr>
+                <th>DATE &amp; HEURE</th>
+                <th>TYPE</th>
+                <th>PRODUIT</th>
+                <th>VOLUME</th>
+                <th>BÉNÉFICIAIRE</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($cessions as $c)
+                <tr>
+                    <td>{{ $c->date_cession->format('d M Y H:i') }}</td>
+                    <td><i class="fas fa-paper-plane" style="color:var(--gv-blue);margin-right:6px;"></i>Transfert</td>
+                    <td><span class="mk-prod-pill">{{ $c->produit->name ?? '—' }}</span></td>
+                    <td><strong>{{ $fmt($c->volume) }}L</strong></td>
+                    <td><strong>{{ $c->beneficiaire->company_name ?? '—' }}</strong></td>
+                </tr>
+            @empty
+                <tr><td colspan="5" style="text-align:center;color:#6b7280;">Aucune cession enregistrée.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+<div style="margin-top:12px;">{{ $cessions->links() }}</div>
 
-            <div class="mt-4">{{ $cessionsEnvoyees->links() }}</div>
-        </section>
-
-        <section class="rounded-[32px] border border-slate-200 bg-slate-50 p-6 shadow-lg">
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <h2 class="text-xl font-semibold text-slate-950">Cessions reçues</h2>
-                    <p class="mt-1 text-sm text-slate-500">Transferts reçus par votre entreprise.</p>
-                </div>
-                <span class="text-sm font-semibold text-slate-700">{{ $cessionsRecues->total() }} résultats</span>
-            </div>
-
-            <div class="mt-6 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                    <thead class="bg-slate-100 text-slate-600">
-                        <tr>
-                            <th class="px-4 py-3">Date</th>
-                            <th class="px-4 py-3">Produit</th>
-                            <th class="px-4 py-3">Volume</th>
-                            <th class="px-4 py-3">Cédant</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-200 bg-white">
-                        @forelse($cessionsRecues as $cession)
-                            <tr class="hover:bg-slate-50">
-                                <td class="px-4 py-4 text-slate-700">{{ optional($cession->date_cession)->format('d M Y') ?? '-' }}</td>
-                                <td class="px-4 py-4 text-slate-700">{{ $cession->produit->nom ?? 'N/A' }}</td>
-                                <td class="px-4 py-4 text-slate-700">{{ number_format($cession->volume, 0, ',', ' ') }} L</td>
-                                <td class="px-4 py-4 text-slate-700">{{ $cession->cedant->company_name ?? 'N/A' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="px-4 py-6 text-center text-sm text-slate-500">Aucune cession reçue.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="mt-4">{{ $cessionsRecues->links() }}</div>
-        </section>
+<div class="mk-cession-grid">
+    <div class="mk-cession-card dark">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <i class="fas fa-paper-plane"></i>
+            <span style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;">TOTAL TRANSFÉRER (MOIS)</span>
+        </div>
+        <div style="font-size:2.2rem;font-weight:800;">{{ $fmtShort($totalTransfereMois) }} Litres</div>
+    </div>
+    <div class="mk-cession-card light">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <i class="fas fa-paper-plane"></i>
+            <span style="font-size:0.8rem;font-weight:700;letter-spacing:0.06em;">TOTAL REÇUS (MOIS)</span>
+        </div>
+        <div style="font-size:2.2rem;font-weight:800;">{{ $fmtShort($totalRecuMois) }} Litres</div>
     </div>
 </div>
 @endsection

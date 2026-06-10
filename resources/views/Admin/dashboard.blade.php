@@ -17,8 +17,8 @@
         <strong>{{ $inactiveUsers }}</strong>
     </div>
     <div class="stat-card red">
-        <div><i class="fas fa-ban"></i> INACTIFS</div>
-        <strong>0</strong>
+        <div><i class="fas fa-ban"></i> BLOQUÉS</div>
+        <strong>{{ $blockedUsers }}</strong>
     </div>
 </div>
 

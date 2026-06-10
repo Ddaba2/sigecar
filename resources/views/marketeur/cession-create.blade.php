@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        fetch(`{{ url('/marketeur/api/cuve-stock') }}/${id}`)
+        fetch(`{{ url('/marketeur/api/cuve-stock') }}/${id}`, { headers: { 'Accept': 'application/json' } })
             .then(res => res.json())
             .then(data => {
                 const pct = data.capacite_totale > 0 ? (data.niveau_actuel / data.capacite_totale * 100) : 0;
