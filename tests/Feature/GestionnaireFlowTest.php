@@ -6,7 +6,7 @@ use App\Models\Chargement;
 use App\Models\Cession;
 use App\Models\Cuve;
 use App\Models\Depotage;
-use App\Models\Marketeur;
+use App\Models\MarketeurStock;
 use App\Models\Produit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -24,9 +24,9 @@ class GestionnaireFlowTest extends TestCase
 
     private Cuve $cuveEssence;
 
-    private Marketeur $cedant;
+    private User $cedant;
 
-    private Marketeur $beneficiaire;
+    private User $beneficiaire;
 
     protected function setUp(): void
     {
@@ -93,16 +93,28 @@ class GestionnaireFlowTest extends TestCase
             'type_douane' => 'sous_douane',
         ]);
 
-        $this->cedant = Marketeur::create([
+        $this->cedant = User::create([
+            'name' => 'Cédant SA',
+            'email' => 'cedant@test.local',
+            'password' => Hash::make('secret123'),
+            'role' => 'marketeur',
             'company_name' => 'Cédant SA',
-            'company_registration' => 'RC-1',
             'status' => 'active',
         ]);
 
-        $this->beneficiaire = Marketeur::create([
+        $this->beneficiaire = User::create([
+            'name' => 'Bénéficiaire SA',
+            'email' => 'beneficiaire@test.local',
+            'password' => Hash::make('secret123'),
+            'role' => 'marketeur',
             'company_name' => 'Bénéficiaire SA',
-            'company_registration' => 'RC-2',
             'status' => 'active',
+        ]);
+
+        MarketeurStock::create([
+            'user_id' => $this->cedant->id,
+            'produit_id' => $this->produitEssence->id,
+            'quantite' => 100_000,
         ]);
     }
 
@@ -148,7 +160,7 @@ class GestionnaireFlowTest extends TestCase
             'cuve_destination_id' => $this->cuveEssence->id,
             'volume_brut' => 10_000,
             'temperature' => 15,
-            'fournisseur' => 'Fournisseur DB',
+            'user_id' => $this->cedant->id,
             'provenance' => 'Niger',
             'numero_bon_chargement' => 'PO-2026-001',
             'plaque_imm' => 'AA-1234-XX',
@@ -166,9 +178,10 @@ class GestionnaireFlowTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect(route('gestionnaire.operations'));
+        $response->assertOk();
         $this->assertDatabaseHas('depotages', [
-            'fournisseur' => 'Fournisseur DB',
+            'fournisseur' => 'Cédant SA',
+            'user_id' => $this->cedant->id,
             'volume_brut' => 10_000,
             'created_by' => $this->gestionnaire->id,
         ]);
@@ -179,8 +192,14 @@ class GestionnaireFlowTest extends TestCase
         $this->cuveEssence->refresh();
         $this->assertGreaterThan($niveauAvant, $this->cuveEssence->niveau_actuel);
 
+        $this->assertDatabaseHas('marketeur_stocks', [
+            'user_id' => $this->cedant->id,
+            'produit_id' => $this->produitEssence->id,
+        ]);
+        $this->assertGreaterThan(100_000, MarketeurStock::where('user_id', $this->cedant->id)->value('quantite'));
+
         $this->actingAs($this->gestionnaire)->get('/gestionnaire/operations')
-            ->assertSee('Fournisseur DB')
+            ->assertSee('Cédant SA')
             ->assertSee('Essence Super');
     }
 
@@ -195,7 +214,7 @@ class GestionnaireFlowTest extends TestCase
             'cuve_source_id' => $this->cuveEssence->id,
             'volume_brut' => 5_000,
             'temperature' => 15,
-            'client_nom' => 'Client DB',
+            'user_id' => $this->cedant->id,
             'client_code' => 'CLI-01',
             'plaque_imm' => 'BB-0000-YY',
             'chauffeur_nom' => 'Chauffeur DB',
@@ -203,9 +222,10 @@ class GestionnaireFlowTest extends TestCase
             'capacite_camion' => 45_000,
         ]);
 
-        $response->assertRedirect(route('gestionnaire.operations'));
+        $response->assertOk();
         $this->assertDatabaseHas('chargements', [
-            'client_nom' => 'Client DB',
+            'client_nom' => 'Cédant SA',
+            'user_id' => $this->cedant->id,
             'volume_brut' => 5_000,
             'created_by' => $this->gestionnaire->id,
         ]);
@@ -213,7 +233,7 @@ class GestionnaireFlowTest extends TestCase
         $this->cuveEssence->refresh();
         $this->assertLessThan($avant, $this->cuveEssence->niveau_actuel);
 
-        $this->actingAs($this->gestionnaire)->get('/gestionnaire/rapports?date=2026-04-13')->assertSee('Client DB');
+        $this->actingAs($this->gestionnaire)->get('/gestionnaire/rapports?date=2026-04-13')->assertSee('Cédant SA');
     }
 
     public function test_store_cession_persists_and_pdf_exists(): void

@@ -97,8 +97,13 @@
                     <input type="number" step="0.1" name="temperature" id="chg-temp" value="{{ old('temperature', '15') }}" required>
                 </div>
                 <div class="gv-field">
-                    <label>Client</label>
-                    <input type="text" name="client_nom" value="{{ old('client_nom') }}" placeholder="TOTALENERGIES CI" required>
+                    <label>Client (opérateur / marketeur)</label>
+                    <select name="user_id" required>
+                        <option value="">Sélectionner un marketeur</option>
+                        @foreach($marketeurs as $m)
+                            <option value="{{ $m->id }}" @selected(old('user_id') == $m->id)>{{ $m->operatorName() }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="gv-field">
                     <label>Code client</label>

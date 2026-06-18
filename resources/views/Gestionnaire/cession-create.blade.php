@@ -109,7 +109,7 @@
                 <select name="cedant_id" required>
                     <option value="">Ex : NDC</option>
                     @foreach($marketeurs as $m)
-                        <option value="{{ $m->id }}" @selected(old('cedant_id') == $m->id)>{{ $m->company_name }}</option>
+                        <option value="{{ $m->id }}" @selected(old('cedant_id') == $m->id)>{{ $m->operatorName() }}</option>
                     @endforeach
                 </select>
             </div>
@@ -118,7 +118,7 @@
                 <select name="beneficiaire_id" required>
                     <option value="">Ex : Petro golf</option>
                     @foreach($marketeurs as $m)
-                        <option value="{{ $m->id }}" @selected(old('beneficiaire_id') == $m->id)>{{ $m->company_name }}</option>
+                        <option value="{{ $m->id }}" @selected(old('beneficiaire_id') == $m->id)>{{ $m->operatorName() }}</option>
                     @endforeach
                 </select>
             </div>

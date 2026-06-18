@@ -64,6 +64,25 @@ class User extends Authenticatable
         return $this->role === 'marketeur';
     }
 
+    public function operatorName(): string
+    {
+        return $this->company_name ?: $this->name;
+    }
+
+    public static function marketeursActifs()
+    {
+        return static::query()
+            ->where('role', 'marketeur')
+            ->where('status', 'active')
+            ->orderBy('company_name')
+            ->orderBy('name');
+    }
+
+    public function operatorStocks()
+    {
+        return $this->hasMany(MarketeurStock::class, 'user_id');
+    }
+
     /**
      * Relation avec les depotages créés par l'utilisateur
      */
@@ -86,13 +105,5 @@ class User extends Authenticatable
     public function cessions()
     {
         return $this->hasMany(Cession::class, 'created_by');
-    }
-
-    /**
-     * Relation vers le marketeur associé à l'utilisateur
-     */
-    public function marketeur()
-    {
-        return $this->hasOne(Marketeur::class);
     }
 }

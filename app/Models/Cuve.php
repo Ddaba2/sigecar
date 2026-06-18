@@ -17,7 +17,7 @@ class Cuve extends Model
      * Champs remplissables lors de la création/mise à jour
      */
     protected $fillable = [
-        'code', 'nom', 'produit_id', 'capacite_totale', 'niveau_actuel', 'seuil_alerte_bas', 'seuil_alerte_haut', 'status', 'type_douane'
+        'code', 'nom', 'produit_id', 'user_id', 'capacite_totale', 'niveau_actuel', 'seuil_alerte_bas', 'seuil_alerte_haut', 'status', 'type_douane'
     ];
 
     /**
@@ -36,6 +36,11 @@ class Cuve extends Model
     public function produit()
     {
         return $this->belongsTo(Produit::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

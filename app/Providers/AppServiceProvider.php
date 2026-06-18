@@ -4,7 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
-use App\Models\Marketeur;
+use App\Models\User;
 
 /**
  * Fournisseur de services principal de l'application
@@ -27,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Partage les marketeurs actifs avec certaines vues
         View::composer(['gestionnaire.cession-create', 'gestionnaire.depotage-create'], function ($view) {
-            $view->with('marketeurs', Marketeur::where('status', 'active')->get());
+            $view->with('marketeurs', User::marketeursActifs()->get());
         });
     }
 }

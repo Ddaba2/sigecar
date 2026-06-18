@@ -9,7 +9,6 @@ use App\Models\Cuve;
 use App\Models\Depotage;
 use App\Models\Chargement;
 use App\Models\Cession;
-use App\Models\Marketeur;
 
 /**
  * Seeder principal de la base de données
@@ -67,30 +66,13 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // Marketeur profiles
-        Marketeur::create([
-            'user_id' => $user1->id,
-            'company_name' => 'Petro Bama',
-            'company_registration' => 'REG-001',
-            'telephone' => '+223 70 00 00 01',
-            'status' => 'active',
-        ]);
-
-        Marketeur::create([
-            'user_id' => $user2->id,
-            'company_name' => 'Corridor Group',
-            'company_registration' => 'REG-002',
-            'telephone' => '+223 70 00 00 02',
-            'status' => 'active',
-        ]);
-
-        // Produits (déjà dans migration, mais au cas où)
         // Cuves
         Cuve::updateOrCreate(
             ['code' => 'BAC-01'],
             [
                 'nom' => 'Cuve Essence Super',
                 'produit_id' => 1,
+                'user_id' => $user1->id,
                 'capacite_totale' => 300000,
                 'niveau_actuel' => 225000,
                 'seuil_alerte_bas' => 30000,
@@ -105,6 +87,7 @@ class DatabaseSeeder extends Seeder
             [
                 'nom' => 'Cuve Gasoil Premium',
                 'produit_id' => 2,
+                'user_id' => $user2->id,
                 'capacite_totale' => 300000,
                 'niveau_actuel' => 36000,
                 'seuil_alerte_bas' => 30000,
@@ -119,6 +102,7 @@ class DatabaseSeeder extends Seeder
             [
                 'nom' => 'Cuve Jet A1',
                 'produit_id' => 3,
+                'user_id' => $user1->id,
                 'capacite_totale' => 500000,
                 'niveau_actuel' => 485000,
                 'seuil_alerte_bas' => 50000,
@@ -133,6 +117,7 @@ class DatabaseSeeder extends Seeder
             [
                 'nom' => 'Cuve Gasoil Marine',
                 'produit_id' => 4,
+                'user_id' => $user2->id,
                 'capacite_totale' => 400000,
                 'niveau_actuel' => 180000,
                 'seuil_alerte_bas' => 40000,
@@ -368,8 +353,8 @@ class DatabaseSeeder extends Seeder
         Cession::create([
             'numero_cession' => 'CES-2026-001',
             'date_cession' => now()->subDays(2),
-            'cedant_id' => 1,
-            'beneficiaire_id' => 2,
+            'cedant_id' => $user1->id,
+            'beneficiaire_id' => $user2->id,
             'produit_id' => 1,
             'cuve_id' => 1,
             'volume' => 90000,
@@ -384,8 +369,8 @@ class DatabaseSeeder extends Seeder
         Cession::create([
             'numero_cession' => 'CES-2026-002',
             'date_cession' => now()->subDays(9),
-            'cedant_id' => 2,
-            'beneficiaire_id' => 1,
+            'cedant_id' => $user2->id,
+            'beneficiaire_id' => $user1->id,
             'produit_id' => 2,
             'cuve_id' => 2,
             'volume' => 50000,
@@ -400,8 +385,8 @@ class DatabaseSeeder extends Seeder
         Cession::create([
             'numero_cession' => 'CES-2025-003',
             'date_cession' => now()->subDays(19),
-            'cedant_id' => 1,
-            'beneficiaire_id' => 2,
+            'cedant_id' => $user1->id,
+            'beneficiaire_id' => $user2->id,
             'produit_id' => 1,
             'cuve_id' => 1,
             'volume' => 200000,
@@ -416,8 +401,8 @@ class DatabaseSeeder extends Seeder
         Cession::create([
             'numero_cession' => 'CES-2025-004',
             'date_cession' => now()->subDays(29),
-            'cedant_id' => 2,
-            'beneficiaire_id' => 1,
+            'cedant_id' => $user2->id,
+            'beneficiaire_id' => $user1->id,
             'produit_id' => 2,
             'cuve_id' => 4,
             'volume' => 70000,
@@ -432,8 +417,8 @@ class DatabaseSeeder extends Seeder
         Cession::create([
             'numero_cession' => 'CES-2025-005',
             'date_cession' => now()->subDays(39),
-            'cedant_id' => 1,
-            'beneficiaire_id' => 2,
+            'cedant_id' => $user1->id,
+            'beneficiaire_id' => $user2->id,
             'produit_id' => 1,
             'cuve_id' => 1,
             'volume' => 50000,
@@ -444,5 +429,7 @@ class DatabaseSeeder extends Seeder
             'status' => 'confirmed',
             'created_by' => 1,
         ]);
+
+        app(\App\Services\MarketeurStockService::class)->syncAll();
     }
 }

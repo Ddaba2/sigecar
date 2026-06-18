@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use Tests\TestCase;
 use Tests\DatabaseTesting;
 use App\Models\User;
-use App\Models\Marketeur;
 use App\Models\Produit;
 use App\Models\Cuve;
 use App\Models\Depotage;
@@ -29,14 +28,13 @@ class MarketeurFlowTest extends TestCase
             'company_name' => 'Petro Test',
         ]);
 
-        $marketeur = Marketeur::create([
-            'user_id' => $user->id,
-            'company_name' => 'Petro Test',
-            'company_registration' => 'MT-001',
-            'address' => 'Bamako',
-            'telephone' => '+22370000000',
-            'contact_person' => 'Hamadou',
+        $beneficiaire = User::create([
+            'name' => 'Beneficiaire Test',
+            'email' => 'beneficiaire-test@example.com',
+            'password' => Hash::make('password123'),
+            'role' => 'marketeur',
             'status' => 'active',
+            'company_name' => 'Beneficiaire Test',
         ]);
 
         $produit = Produit::create([
@@ -68,7 +66,8 @@ class MarketeurFlowTest extends TestCase
             'volume_brut' => 90000,
             'temperature' => 15.0,
             'volume_corrige' => 90000,
-            'fournisseur' => 'Petro Bama',
+            'fournisseur' => 'Petro Test',
+            'user_id' => $user->id,
             'provenance' => 'Bamako',
             'numero_bon_chargement' => 'BLC-0001',
             'plaque_imm' => 'ABC-123-ML',
@@ -90,6 +89,7 @@ class MarketeurFlowTest extends TestCase
             'temperature' => 15.0,
             'volume_corrige' => 32500,
             'client_nom' => 'Petro Test',
+            'user_id' => $user->id,
             'client_code' => 'PT-001',
             'plaque_imm' => 'DEF-456-ML',
             'chauffeur_nom' => 'Fatoumata Traore',
@@ -103,8 +103,8 @@ class MarketeurFlowTest extends TestCase
         $cession = Cession::create([
             'numero_cession' => 'CES-20260414-0001',
             'date_cession' => now(),
-            'cedant_id' => $marketeur->id,
-            'beneficiaire_id' => $marketeur->id,
+            'cedant_id' => $user->id,
+            'beneficiaire_id' => $beneficiaire->id,
             'produit_id' => $produit->id,
             'cuve_id' => $cuve->id,
             'volume' => 50000,

@@ -235,7 +235,7 @@
             </div>
             <div class="gv-topbar-actions">
                 <span class="gv-bell" title="Notifications"><i class="fas fa-bell"></i></span>
-                <span class="gv-company-badge">{{ strtoupper(Auth::user()->marketeur->company_name ?? Auth::user()->company_name ?? 'TOTAL') }}</span>
+                <span class="gv-company-badge">{{ strtoupper(Auth::user()->operatorName()) }}</span>
             </div>
         </header>
 

@@ -18,7 +18,7 @@ class Depotage extends Model
      */
     protected $fillable = [
         'numero_depotage', 'date_operation', 'produit_id', 'cuve_destination_id',
-        'volume_brut', 'temperature', 'volume_corrige', 'fournisseur', 'provenance',
+        'volume_brut', 'temperature', 'volume_corrige', 'fournisseur', 'user_id', 'provenance',
         'numero_bon_chargement', 'plaque_imm', 'chauffeur_nom', 'chauffeur_permis',
         'chauffeur_tel', 'declaration_douane', 'bureau_douane', 'status', 'created_by',
         'document_pdf'
@@ -48,6 +48,11 @@ class Depotage extends Model
     public function cuve()
     {
         return $this->belongsTo(Cuve::class, 'cuve_destination_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

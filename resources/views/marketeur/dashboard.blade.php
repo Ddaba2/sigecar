@@ -79,6 +79,28 @@
     </table>
 </div>
 
+@if(isset($marketeurStocks) && $marketeurStocks->isNotEmpty())
+<div class="gv-table-wrap" style="margin-bottom:24px;">
+    <div style="padding:16px 18px 0;font-family:var(--gv-serif);font-weight:700;font-size:1.1rem;">Mon stock par produit</div>
+    <table class="gv-table" style="margin-top:8px;">
+        <thead>
+            <tr>
+                <th>PRODUIT</th>
+                <th>QUANTITÉ DISPONIBLE</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($marketeurStocks as $stock)
+                <tr>
+                    <td><span class="mk-prod-pill">{{ $stock->produit->name ?? '—' }}</span></td>
+                    <td><strong>{{ $fmt($stock->quantite) }} L</strong></td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+</div>
+@endif
+
 <div class="mk-bottom-grid">
     <div class="mk-stock-card">
         <h3>Répartitions des Stocks</h3>

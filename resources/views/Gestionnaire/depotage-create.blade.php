@@ -89,8 +89,13 @@
                     </select>
                 </div>
                 <div class="gv-field">
-                    <label>Propriétaire (fournisseur)</label>
-                    <input type="text" name="fournisseur" value="{{ old('fournisseur') }}" placeholder="Sélectionner ou saisir" required>
+                    <label>Propriétaire (opérateur / marketeur)</label>
+                    <select name="user_id" required>
+                        <option value="">Sélectionner un marketeur</option>
+                        @foreach($marketeurs as $m)
+                            <option value="{{ $m->id }}" @selected(old('user_id') == $m->id)>{{ $m->operatorName() }}</option>
+                        @endforeach
+                    </select>
                 </div>
                 <div class="gv-field">
                     <label>Provenance</label>

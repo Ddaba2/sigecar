@@ -18,7 +18,7 @@ class Chargement extends Model
      */
     protected $fillable = [
         'numero_chargement', 'date_operation', 'produit_id', 'cuve_source_id',
-        'volume_brut', 'temperature', 'volume_corrige', 'client_nom', 'client_code',
+        'volume_brut', 'temperature', 'volume_corrige', 'client_nom', 'user_id', 'client_code',
         'plaque_imm', 'chauffeur_nom', 'chauffeur_permis', 'chauffeur_badge',
         'capacite_camion', 'status', 'created_by', 'document_pdf'
     ];
@@ -48,6 +48,11 @@ class Chargement extends Model
     public function cuve()
     {
         return $this->belongsTo(Cuve::class, 'cuve_source_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

@@ -80,7 +80,7 @@
                     style="width:100%;padding:14px 16px;border:0;border-radius:10px;background:#eef2ff;font-size:0.95rem;font-family:var(--gv-sans);color:#1e293b;appearance:none;">
                     <option value="">Ex: Petro golf</option>
                     @foreach($marketeurs as $m)
-                        <option value="{{ $m->id }}" @selected(old('beneficiaire_id') == $m->id)>{{ $m->company_name }}</option>
+                        <option value="{{ $m->id }}" @selected(old('beneficiaire_id') == $m->id)>{{ $m->operatorName() }}</option>
                     @endforeach
                 </select>
             </div>
@@ -110,29 +110,45 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const cuveSelect = document.getElementById('cuve_id_select');
+    const produitSelect = document.querySelector('select[name="produit_id"]');
     const stockBar = document.getElementById('stock_bar');
     const stockText = document.getElementById('stock_text');
 
-    cuveSelect.addEventListener('change', function() {
-        const id = this.value;
-        if (!id) {
-            stockBar.style.width = '0%';
-            stockText.innerText = '0,000L';
+    function updateStockDisplay(qty, capacite) {
+        const cap = capacite || 1;
+        const pct = cap > 0 ? (qty / cap * 100) : 0;
+        stockBar.style.width = Math.min(100, pct) + '%';
+        stockText.innerText = new Intl.NumberFormat('fr-FR').format(qty) + 'L';
+    }
+
+    function loadOperatorStock(produitId, cuveId) {
+        if (!produitId) {
+            updateStockDisplay(0, 1);
             return;
         }
-
-        fetch(`{{ url('/marketeur/api/cuve-stock') }}/${id}`, { headers: { 'Accept': 'application/json' } })
+        fetch(`{{ url('/marketeur/api/stock-produit') }}/${produitId}`, { headers: { 'Accept': 'application/json' } })
             .then(res => res.json())
             .then(data => {
-                const pct = data.capacite_totale > 0 ? (data.niveau_actuel / data.capacite_totale * 100) : 0;
-                stockBar.style.width = Math.min(100, pct) + '%';
-                stockText.innerText = new Intl.NumberFormat('fr-FR').format(data.niveau_actuel) + 'L';
+                if (cuveId) {
+                    fetch(`{{ url('/marketeur/api/cuve-stock') }}/${cuveId}`, { headers: { 'Accept': 'application/json' } })
+                        .then(r => r.json())
+                        .then(cuve => updateStockDisplay(data.quantite || 0, cuve.capacite_totale));
+                } else {
+                    updateStockDisplay(data.quantite || 0, data.quantite || 1);
+                }
             });
+    }
+
+    cuveSelect.addEventListener('change', function() {
+        loadOperatorStock(produitSelect.value, this.value);
     });
 
-    // Trigger on load if there's a selected value
-    if (cuveSelect.value) {
-        cuveSelect.dispatchEvent(new Event('change'));
+    produitSelect.addEventListener('change', function() {
+        loadOperatorStock(this.value, cuveSelect.value);
+    });
+
+    if (produitSelect.value) {
+        loadOperatorStock(produitSelect.value, cuveSelect.value);
     }
 });
 </script>

@@ -80,4 +80,5 @@ Route::prefix('marketeur')->name('marketeur.')->middleware(['auth', 'role:market
     Route::get('/cessions/{id}', [MarketeurController::class, 'showCession'])->name('cession.show');
     Route::get('/parametres', [MarketeurController::class, 'settings'])->name('settings');
     Route::get('/api/cuve-stock/{id}', [MarketeurController::class, 'cuveStock'])->name('api.cuve-stock');
+    Route::get('/api/stock-produit/{produitId}', [MarketeurController::class, 'stockProduit'])->name('api.stock-produit');
 });

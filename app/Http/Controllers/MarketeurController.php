@@ -7,8 +7,9 @@ use App\Models\Cession;
 use App\Models\Depotage;
 use App\Models\Chargement;
 use App\Models\Cuve;
-use App\Models\Marketeur;
+use App\Models\User;
 use App\Models\Produit;
+use App\Services\MarketeurStockService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -25,18 +26,19 @@ class MarketeurController extends Controller
 
     public function dashboard()
     {
-        $marketeur = Auth::user()->marketeur;
-        $company = $marketeur?->company_name ?? '';
+        $user = Auth::user();
+        $stockService = app(MarketeurStockService::class);
 
-        $totalVolumeCede = (int) Cession::where('cedant_id', $marketeur?->id ?? 0)->sum('volume');
-        $totalVolumeRecu = (int) Cession::where('beneficiaire_id', $marketeur?->id ?? 0)->sum('volume');
-        $totalDepotages = (int) Depotage::where('fournisseur', $company)->sum('volume_corrige');
-        $totalChargements = (int) Chargement::where('client_nom', $company)->sum('volume_corrige');
+        $marketeurStocks = $stockService->forUser($user->id);
+        $stockByProduct = $marketeurStocks->mapWithKeys(fn ($s) => [$s->produit->name ?? '—' => $s->quantite]);
+        $totalLitresDisponibles = (int) $marketeurStocks->sum('quantite');
+        $maxStockProduct = $stockByProduct->max() ?: 1;
 
-        $totalLitresDisponibles = max(0, $totalVolumeRecu + $totalDepotages - $totalVolumeCede - $totalChargements);
+        $totalDepotages = (int) Depotage::where('user_id', $user->id)->sum('volume_corrige');
+        $totalChargements = (int) Chargement::where('user_id', $user->id)->sum('volume_corrige');
 
-        $recentDepotages = Depotage::where('fournisseur', $company)->with('produit')->latest()->take(8)->get();
-        $recentChargements = Chargement::where('client_nom', $company)->with('produit')->latest()->take(8)->get();
+        $recentDepotages = Depotage::where('user_id', $user->id)->with('produit')->latest()->take(8)->get();
+        $recentChargements = Chargement::where('user_id', $user->id)->with('produit')->latest()->take(8)->get();
 
         $recentOperations = $recentDepotages->map(fn ($d) => [
             'date' => $d->date_operation,
@@ -54,31 +56,23 @@ class MarketeurController extends Controller
             'status' => $c->status,
         ]))->sortByDesc('date')->take(6)->values();
 
-        $stockByProduct = Depotage::where('fournisseur', $company)
-            ->with('produit')
-            ->get()
-            ->groupBy(fn ($d) => $d->produit->name ?? 'Autre')
-            ->map(fn ($group) => (int) $group->sum('volume_corrige'));
-
-        $maxStockProduct = $stockByProduct->max() ?: 1;
-
         return view('marketeur.dashboard', compact(
             'totalLitresDisponibles',
             'totalDepotages',
             'totalChargements',
             'recentOperations',
             'stockByProduct',
-            'maxStockProduct'
+            'maxStockProduct',
+            'marketeurStocks'
         ));
     }
 
     public function operations(Request $request)
     {
-        $marketeur = Auth::user()->marketeur;
-        $company = $marketeur?->company_name ?? '';
+        $user = Auth::user();
 
-        $depotagesQ = Depotage::where('fournisseur', $company)->with(['produit', 'cuve']);
-        $chargementsQ = Chargement::where('client_nom', $company)->with(['produit', 'cuve']);
+        $depotagesQ = Depotage::where('user_id', $user->id)->with(['produit', 'cuve']);
+        $chargementsQ = Chargement::where('user_id', $user->id)->with(['produit', 'cuve']);
 
         $this->applyDateFilter($depotagesQ, 'date_operation', $request->string('periode')->toString());
         $this->applyDateFilter($chargementsQ, 'date_operation', $request->string('periode')->toString());
@@ -114,17 +108,17 @@ class MarketeurController extends Controller
             $operations = $operations->filter(fn ($o) => $o['type'] === $typeLabel)->values();
         }
 
-        $totalDepotagesMois = (int) Depotage::where('fournisseur', $company)
+        $totalDepotagesMois = (int) Depotage::where('user_id', $user->id)
             ->whereMonth('date_operation', now()->month)
             ->whereYear('date_operation', now()->year)
             ->sum('volume_corrige');
 
-        $totalChargementsMois = (int) Chargement::where('client_nom', $company)
+        $totalChargementsMois = (int) Chargement::where('user_id', $user->id)
             ->whereMonth('date_operation', now()->month)
             ->whereYear('date_operation', now()->year)
             ->sum('volume_corrige');
 
-        $sousDouaneActuel = (int) Depotage::where('fournisseur', $company)
+        $sousDouaneActuel = (int) Depotage::where('user_id', $user->id)
             ->where('status', 'sous_douane')
             ->sum('volume_corrige');
 
@@ -141,9 +135,9 @@ class MarketeurController extends Controller
 
     public function cessions(Request $request)
     {
-        $marketeur = Auth::user()->marketeur;
+        $user = Auth::user();
 
-        $query = Cession::where('cedant_id', $marketeur?->id ?? 0)
+        $query = Cession::where('cedant_id', $user->id)
             ->with(['beneficiaire', 'produit']);
 
         if ($request->filled('produit_id')) {
@@ -154,12 +148,12 @@ class MarketeurController extends Controller
 
         $cessions = $query->latest()->paginate(15)->withQueryString();
 
-        $totalTransfereMois = (int) Cession::where('cedant_id', $marketeur?->id ?? 0)
+        $totalTransfereMois = (int) Cession::where('cedant_id', $user->id)
             ->whereMonth('date_cession', now()->month)
             ->whereYear('date_cession', now()->year)
             ->sum('volume');
 
-        $totalRecuMois = (int) Cession::where('beneficiaire_id', $marketeur?->id ?? 0)
+        $totalRecuMois = (int) Cession::where('beneficiaire_id', $user->id)
             ->whereMonth('date_cession', now()->month)
             ->whereYear('date_cession', now()->year)
             ->sum('volume');
@@ -176,10 +170,10 @@ class MarketeurController extends Controller
 
     public function showCession($id)
     {
-        $marketeur = Auth::user()->marketeur;
+        $user = Auth::user();
         $cession = Cession::with(['cedant', 'beneficiaire', 'produit', 'cuve'])->findOrFail($id);
 
-        if ($cession->cedant_id != $marketeur?->id && $cession->beneficiaire_id != $marketeur?->id) {
+        if ($cession->cedant_id != $user->id && $cession->beneficiaire_id != $user->id) {
             abort(403);
         }
 
@@ -190,25 +184,25 @@ class MarketeurController extends Controller
     {
         $produits = Produit::where('status', 'active')->get();
         $cuves = Cuve::with('produit')->get();
-        $marketeurs = Marketeur::where('status', 'active')->get();
+        $marketeurs = User::marketeursActifs()->get();
 
         return view('marketeur.cession-create', compact('produits', 'cuves', 'marketeurs'));
     }
 
     public function storeCession(Request $request)
     {
-        $marketeur = Auth::user()->marketeur;
+        $user = Auth::user();
 
         $validated = $request->validate([
             'date_cession' => 'required|date',
-            'beneficiaire_id' => 'required|exists:marqueteurs,id',
+            'beneficiaire_id' => 'required|exists:users,id',
             'produit_id' => 'required|exists:produits,id',
             'cuve_id' => 'required|exists:cuves,id',
             'volume' => 'required|integer|min:1',
             'temperature' => 'nullable|numeric',
         ]);
 
-        if ($validated['beneficiaire_id'] == $marketeur?->id) {
+        if ($validated['beneficiaire_id'] == $user->id) {
             return back()->with('error', 'Le bénéficiaire doit être différent de votre société.');
         }
 
@@ -217,10 +211,17 @@ class MarketeurController extends Controller
             $temp = $validated['temperature'] ?? 15;
             $volumeCorrige = (int) round($validated['volume'] * (1 + (15 - $temp) * 0.0008));
 
+            app(MarketeurStockService::class)->transfer(
+                $user->id,
+                $validated['beneficiaire_id'],
+                $validated['produit_id'],
+                $volumeCorrige
+            );
+
             Cession::create([
                 'numero_cession' => 'CES-' . date('YmdHis'),
                 'date_cession' => $validated['date_cession'],
-                'cedant_id' => $marketeur->id,
+                'cedant_id' => $user->id,
                 'beneficiaire_id' => $validated['beneficiaire_id'],
                 'produit_id' => $validated['produit_id'],
                 'cuve_id' => $validated['cuve_id'],
@@ -229,13 +230,16 @@ class MarketeurController extends Controller
                 'temperature' => $temp,
                 'prix_unitaire' => 0,
                 'montant_total' => 0,
-                'status' => 'pending',
+                'status' => 'confirmed',
                 'created_by' => Auth::id(),
             ]);
 
             DB::commit();
 
             return redirect()->route('marketeur.cessions')->with('success', 'Cession enregistrée avec succès.');
+        } catch (\RuntimeException $e) {
+            DB::rollBack();
+            return back()->with('error', $e->getMessage());
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Erreur: ' . $e->getMessage());
@@ -250,10 +254,22 @@ class MarketeurController extends Controller
     public function cuveStock(int $id)
     {
         $cuve = Cuve::findOrFail($id);
+        $user = Auth::user();
+        $operatorQty = app(MarketeurStockService::class)->getQuantite($user->id, $cuve->produit_id);
 
         return response()->json([
-            'niveau_actuel' => $cuve->niveau_actuel,
+            'niveau_actuel' => $operatorQty,
             'capacite_totale' => $cuve->capacite_totale,
+            'operator_stock' => $operatorQty,
+        ]);
+    }
+
+    public function stockProduit(int $produitId)
+    {
+        $user = Auth::user();
+
+        return response()->json([
+            'quantite' => app(MarketeurStockService::class)->getQuantite($user->id, $produitId),
         ]);
     }
 

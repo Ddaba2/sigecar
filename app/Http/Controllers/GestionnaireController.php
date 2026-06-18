@@ -10,8 +10,9 @@ use App\Models\Chargement;
 use App\Models\Cession;
 use App\Models\Cuve;
 use App\Models\Produit;
-use App\Models\Marketeur;
+use App\Models\User;
 use App\Models\OperationCreux;
+use App\Services\MarketeurStockService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -62,7 +63,7 @@ class GestionnaireController extends Controller
     {
         $produits = Produit::where('status', 'active')->get();
         $cuves = Cuve::with('produit')->get();
-        $marketeurs = Marketeur::where('status', 'active')->get();
+        $marketeurs = User::marketeursActifs()->get();
 
         $recentDepotages = Depotage::with(['produit', 'cuve'])
             ->latest()
@@ -80,7 +81,7 @@ class GestionnaireController extends Controller
             'cuve_destination_id' => 'required|exists:cuves,id',
             'volume_brut' => 'required|integer|min:1',
             'temperature' => 'required|numeric|between:-20,60',
-            'fournisseur' => 'required|string',
+            'user_id' => 'required|exists:users,id',
             'provenance' => 'required|string',
             'numero_bon_chargement' => 'nullable|string',
             'plaque_imm' => 'required|string',
@@ -94,7 +95,7 @@ class GestionnaireController extends Controller
 
         DB::beginTransaction();
         try {
-            // Calcul volume corrigé
+            $operator = User::where('role', 'marketeur')->findOrFail($validated['user_id']);
             $volumeCorrige = $this->calculerVolumeCorrige($validated['volume_brut'], $validated['temperature']);
 
             $depotage = Depotage::create([
@@ -105,7 +106,8 @@ class GestionnaireController extends Controller
                 'volume_brut' => $validated['volume_brut'],
                 'temperature' => $validated['temperature'],
                 'volume_corrige' => $volumeCorrige,
-                'fournisseur' => $validated['fournisseur'],
+                'fournisseur' => $operator->operatorName(),
+                'user_id' => $operator->id,
                 'provenance' => $validated['provenance'],
                 'numero_bon_chargement' => $validated['numero_bon_chargement'] ?? null,
                 'plaque_imm' => $validated['plaque_imm'],
@@ -134,13 +136,17 @@ class GestionnaireController extends Controller
                 }
             }
 
-            // Mettre à jour le stock de la cuve (dépôt sous douane → cuve marquée sous douane)
             $cuve = Cuve::find($validated['cuve_destination_id']);
             $cuve->niveau_actuel += $volumeCorrige;
             if ($depotage->status === 'sous_douane') {
                 $cuve->type_douane = 'sous_douane';
             }
+            if (! $cuve->user_id) {
+                $cuve->user_id = $operator->id;
+            }
             $cuve->save();
+
+            app(MarketeurStockService::class)->creditFromDepotage($depotage);
 
             DB::commit();
 
@@ -207,7 +213,7 @@ class GestionnaireController extends Controller
     {
         $produits = Produit::where('status', 'active')->get();
         $cuves = Cuve::with('produit')->get();
-        $marketeurs = Marketeur::where('status', 'active')->get();
+        $marketeurs = User::marketeursActifs()->get();
 
         $recentChargements = Chargement::with(['produit', 'cuve'])
             ->latest()
@@ -225,7 +231,7 @@ class GestionnaireController extends Controller
             'cuve_source_id' => 'required|exists:cuves,id',
             'volume_brut' => 'required|integer|min:1',
             'temperature' => 'required|numeric|between:-20,60',
-            'client_nom' => 'required|string',
+            'user_id' => 'required|exists:users,id',
             'client_code' => 'nullable|string',
             'plaque_imm' => 'required|string',
             'chauffeur_nom' => 'required|string',
@@ -241,6 +247,7 @@ class GestionnaireController extends Controller
                 return back()->with('error', 'Stock insuffisant dans la cuve');
             }
 
+            $operator = User::where('role', 'marketeur')->findOrFail($validated['user_id']);
             $volumeCorrige = $this->calculerVolumeCorrige($validated['volume_brut'], $validated['temperature']);
 
             $chargement = Chargement::create([
@@ -251,7 +258,8 @@ class GestionnaireController extends Controller
                 'volume_brut' => $validated['volume_brut'],
                 'temperature' => $validated['temperature'],
                 'volume_corrige' => $volumeCorrige,
-                'client_nom' => $validated['client_nom'],
+                'client_nom' => $operator->operatorName(),
+                'user_id' => $operator->id,
                 'client_code' => $validated['client_code'] ?? null,
                 'plaque_imm' => $validated['plaque_imm'],
                 'chauffeur_nom' => $validated['chauffeur_nom'],
@@ -261,9 +269,16 @@ class GestionnaireController extends Controller
                 'created_by' => Auth::id(),
             ]);
 
-            // Mettre à jour le stock
+            // Mettre à jour le stock cuve
             $cuve->niveau_actuel -= $volumeCorrige;
             $cuve->save();
+
+            try {
+                app(MarketeurStockService::class)->debitFromChargement($chargement);
+            } catch (\RuntimeException $e) {
+                DB::rollBack();
+                return back()->with('error', $e->getMessage());
+            }
 
             DB::commit();
 
@@ -309,7 +324,7 @@ class GestionnaireController extends Controller
     {
         $produits = Produit::where('status', 'active')->get();
         $cuves = Cuve::with('produit')->get();
-        $marketeurs = Marketeur::where('status', 'active')->get();
+        $marketeurs = User::marketeursActifs()->get();
         $recentCessions = Cession::with(['cedant', 'beneficiaire', 'produit', 'cuve'])
             ->latest()
             ->take(12)
@@ -322,8 +337,8 @@ class GestionnaireController extends Controller
     {
         $validated = $request->validate([
             'date_cession' => 'required|date',
-            'cedant_id' => 'required|exists:marqueteurs,id',
-            'beneficiaire_id' => 'required|exists:marqueteurs,id|different:cedant_id',
+            'cedant_id' => 'required|exists:users,id',
+            'beneficiaire_id' => 'required|exists:users,id|different:cedant_id',
             'produit_id' => 'required|exists:produits,id',
             'cuve_id' => 'required|exists:cuves,id',
             'volume' => 'required|integer|min:1',
@@ -335,6 +350,14 @@ class GestionnaireController extends Controller
         try {
             $volumeCorrige = $this->calculerVolumeCorrige($validated['volume'], $validated['temperature'] ?? 15);
             $montantTotal = ($validated['prix_unitaire'] ?? 0) * $validated['volume'];
+
+            $stockService = app(MarketeurStockService::class);
+            $stockService->transfer(
+                $validated['cedant_id'],
+                $validated['beneficiaire_id'],
+                $validated['produit_id'],
+                $volumeCorrige
+            );
 
             $cession = Cession::create([
                 'numero_cession' => 'CES-' . date('YmdHis'),
@@ -348,7 +371,7 @@ class GestionnaireController extends Controller
                 'temperature' => $validated['temperature'] ?? 15,
                 'prix_unitaire' => $validated['prix_unitaire'] ?? 0,
                 'montant_total' => $montantTotal,
-                'status' => 'pending',
+                'status' => 'confirmed',
                 'created_by' => Auth::id(),
             ]);
 
@@ -358,6 +381,9 @@ class GestionnaireController extends Controller
 
             return redirect()->route('gestionnaire.operations')->with('success', 'Cession enregistrée avec succès');
 
+        } catch (\RuntimeException $e) {
+            DB::rollBack();
+            return back()->with('error', $e->getMessage());
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Erreur: ' . $e->getMessage());
@@ -390,6 +416,7 @@ class GestionnaireController extends Controller
         $alertes = Cuve::whereRaw('niveau_actuel <= seuil_alerte_bas OR niveau_actuel >= seuil_alerte_haut')->get();
 
         $recentDepotages = Depotage::with(['produit', 'cuve'])->latest()->take(8)->get();
+        $operatorStocks = app(MarketeurStockService::class)->allGroupedByOperator();
 
         return view('gestionnaire.stocks', compact(
             'cuves',
@@ -399,6 +426,7 @@ class GestionnaireController extends Controller
             'acquitte',
             'alertes',
             'recentDepotages',
+            'operatorStocks',
             'pageTitle'
         ));
     }

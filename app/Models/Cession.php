@@ -39,15 +39,15 @@ class Cession extends Model
      */
     public function cedant()
     {
-        return $this->belongsTo(Marketeur::class, 'cedant_id');
+        return $this->belongsTo(User::class, 'cedant_id');
     }
 
     /**
-     * Relation avec le marketeur bénéficiaire (acheteur)
+     * Relation avec l'opérateur bénéficiaire (user role marketeur)
      */
     public function beneficiaire()
     {
-        return $this->belongsTo(Marketeur::class, 'beneficiaire_id');
+        return $this->belongsTo(User::class, 'beneficiaire_id');
     }
 
     /**

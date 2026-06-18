@@ -51,6 +51,37 @@
     </div>
 </div>
 
+<div class="gv-section-head" style="margin-top:0;">
+    <div class="gv-section-title">
+        <i class="fas fa-users"></i>
+        Stock par opérateur
+    </div>
+</div>
+
+<div class="gv-table-wrap" style="margin-bottom:32px;">
+    <table class="gv-table">
+        <thead>
+            <tr>
+                <th>OPÉRATEUR</th>
+                <th>PRODUIT</th>
+                <th>QUANTITÉ (L)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @php $flatOperatorStocks = $operatorStocks->flatten(1); @endphp
+            @forelse($flatOperatorStocks as $row)
+                <tr>
+                    <td style="font-weight:700;">{{ $row->user?->operatorName() ?? '—' }}</td>
+                    <td style="text-transform:uppercase;">{{ $row->produit->name ?? '—' }}</td>
+                    <td><strong>{{ $fmt($row->quantite) }} L</strong></td>
+                </tr>
+            @empty
+                <tr><td colspan="3" style="text-align:center;color:#6b7280;">Aucun stock opérateur enregistré.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
+</div>
+
 <div class="gv-section-head">
     <div class="gv-section-title">
         <i class="fas fa-database"></i>
