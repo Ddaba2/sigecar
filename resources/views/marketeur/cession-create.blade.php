@@ -17,7 +17,10 @@
 <h1 class="gv-page-title gv-page-title-serif">Nouvelle Enregistrement</h1>
 <p class="gv-page-sub">Saisie des informations decession, de propriété et stock acquitté.</p>
 
-<form method="POST" action="{{ route('marketeur.cession.store') }}">
+{{-- Point 10 : confirmation avant soumission --}}
+<form method="POST" action="{{ route('marketeur.cession.store') }}"
+      onsubmit="return confirm('Confirmer le transfert ? Cette action est irréversible.');">
+
     @csrf
     <div style="background:#fff;border-radius:14px;box-shadow:0 4px 24px rgba(0, 27, 51, 0.08);padding:32px 36px 36px;max-width:920px;">
         <!-- SECTION ORIGINE DES PRODUITS -->

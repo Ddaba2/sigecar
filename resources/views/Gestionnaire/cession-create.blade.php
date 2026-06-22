@@ -6,6 +6,11 @@
 @if(session('success'))
     <div class="gv-alert gv-alert-success">{{ session('success') }}</div>
 @endif
+@if(session('warning'))
+    <div class="gv-alert gv-alert-error" style="background:#fffbeb;border-left-color:#f59e0b;color:#92400e;">
+        <i class="fas fa-triangle-exclamation" style="margin-right:6px;"></i>{{ session('warning') }}
+    </div>
+@endif
 @if(session('error'))
     <div class="gv-alert gv-alert-error">{{ session('error') }}</div>
 @endif
@@ -39,11 +44,11 @@
             @forelse($recentCessions as $c)
                 <tr>
                     <td>{{ $c->date_cession->format('d/m/Y H:i') }}</td>
-                    <td>{{ $c->cedant->company_name ?? '—' }}</td>
+                    <td>{{ ($c->cedant && $c->cedant->isMarketeur()) ? $c->cedant->operatorName() : '—' }}</td>
                     <td style="text-transform:uppercase;">{{ $c->produit->nom ?? '—' }}</td>
                     <td>{{ $fmt($c->volume) }} L</td>
                     <td style="text-transform:uppercase;">{{ $c->cuve->nom ?? $c->cuve->code ?? '—' }}</td>
-                    <td>{{ $c->beneficiaire->company_name ?? '—' }}</td>
+                    <td>{{ ($c->beneficiaire && $c->beneficiaire->isMarketeur()) ? $c->beneficiaire->operatorName() : '—' }}</td>
                 </tr>
             @empty
                 <tr><td colspan="6" style="text-align:center;color:#6b7280;">Aucune cession récente.</td></tr>
@@ -54,7 +59,9 @@
 
 <h2 class="gv-page-title" style="font-size:1.35rem;">Nouvel enregistrement</h2>
 
-<form method="POST" action="{{ route('gestionnaire.cession.store') }}" id="form-cession">
+{{-- Point 10 : confirmation avant soumission --}}
+<form method="POST" action="{{ route('gestionnaire.cession.store') }}" id="form-cession"
+      onsubmit="return confirm('Confirmer le transfert de carburant entre les deux opérateurs ?');">
     @csrf
     <div class="gv-card">
         <div class="gv-card-header">
@@ -80,14 +87,14 @@
                 <select name="cuve_id" id="ces-cuve" required>
                     <option value="">Sélectionner</option>
                     @foreach($cuves as $c)
-                        <option value="{{ $c->id }}" data-niveau="{{ $c->niveau_actuel }}" data-capacite="{{ $c->capacite_totale }}" @selected(old('cuve_id') == $c->id)>
+                        <option value="{{ $c->id }}" @selected(old('cuve_id') == $c->id)>
                             {{ $c->nom ?? $c->code }}
                         </option>
                     @endforeach
                 </select>
             </div>
             <div class="gv-field">
-                <label>Stock disponible</label>
+                <label>Stock disponible (opérateur cédant)</label>
                 <div style="background:var(--gv-input);border-radius:8px;padding:12px 14px;">
                     <div style="height:10px;background:#e5e7eb;border-radius:5px;overflow:hidden;">
                         <div id="ces-stock-bar" style="height:100%;width:0%;background:#28a745;border-radius:5px;transition:width .2s;"></div>
@@ -106,7 +113,7 @@
         <div class="gv-form-grid">
             <div class="gv-field">
                 <label>Nom du cédant</label>
-                <select name="cedant_id" required>
+                <select name="cedant_id" id="ces-cedant" required>
                     <option value="">Ex : NDC</option>
                     @foreach($marketeurs as $m)
                         <option value="{{ $m->id }}" @selected(old('cedant_id') == $m->id)>{{ $m->operatorName() }}</option>
@@ -137,20 +144,45 @@
 @push('scripts')
 <script>
 (function () {
-    const sel = document.getElementById('ces-cuve');
+    const cedantSel  = document.getElementById('ces-cedant');
+    const produitSel = document.getElementById('ces-produit');
     const bar = document.getElementById('ces-stock-bar');
     const lbl = document.getElementById('ces-stock-lbl');
-    function upd() {
-        const o = sel.options[sel.selectedIndex];
-        if (!o || !o.dataset.niveau) { bar.style.width = '0%'; lbl.textContent = '— L'; return; }
-        const n = parseFloat(o.dataset.niveau) || 0;
-        const cap = parseFloat(o.dataset.capacite) || 1;
-        const p = Math.min(100, Math.round((n / cap) * 100));
-        bar.style.width = p + '%';
-        lbl.textContent = new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' L';
+
+    // Point 1 : appel au stock logique de l'opérateur (et non au niveau physique de la cuve)
+    function fetchOperatorStock() {
+        const cedantId  = cedantSel ? cedantSel.value : '';
+        const produitId = produitSel ? produitSel.value : '';
+
+        if (!cedantId || !produitId) {
+            bar.style.width = '0%';
+            lbl.textContent = '— L';
+            return;
+        }
+
+        fetch(`{{ url('/gestionnaire/api/operator-stock') }}/${cedantId}/${produitId}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const qty = parseFloat(data.quantite) || 0;
+            // Barre proportionnelle sur 50 000 L = 100 % (indicateur visuel)
+            const pct = Math.min(100, Math.round(qty / 50000 * 100));
+            bar.style.width = pct + '%';
+            bar.style.background = qty > 0 ? '#28a745' : '#dc3545';
+            lbl.textContent = new Intl.NumberFormat('fr-FR').format(Math.round(qty)) + ' L';
+        })
+        .catch(() => {
+            bar.style.width = '0%';
+            lbl.textContent = '— L';
+        });
     }
-    sel.addEventListener('change', upd);
-    upd();
+
+    if (cedantSel)  cedantSel.addEventListener('change', fetchOperatorStock);
+    if (produitSel) produitSel.addEventListener('change', fetchOperatorStock);
+
+    // Chargement initial si des valeurs sont pré-sélectionnées (old())
+    if (cedantSel?.value && produitSel?.value) fetchOperatorStock();
 })();
 </script>
 @endpush

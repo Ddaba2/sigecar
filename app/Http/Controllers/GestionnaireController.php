@@ -13,9 +13,11 @@ use App\Models\Produit;
 use App\Models\User;
 use App\Models\OperationCreux;
 use App\Services\MarketeurStockService;
+use App\Http\Controllers\Concerns\FiltersOperations;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 /**
@@ -24,6 +26,8 @@ use Barryvdh\DomPDF\Facade\Pdf;
  */
 class GestionnaireController extends Controller
 {
+    use FiltersOperations;
+
     /**
      * Constructeur : applique les middlewares d'authentification et de rôle gestionnaire
      */
@@ -622,39 +626,62 @@ class GestionnaireController extends Controller
         return round($volumeBrut / $correction);
     }
 
-    private function generateDepotagePDF($depotage)
+    // Point 1 — stock logique de l'opérateur par produit (utilisé par le formulaire cession)
+    public function operatorStock(int $userId, int $produitId): \Illuminate\Http\JsonResponse
     {
-        $depotage->load(['produit', 'cuve', 'operationsCreux.produit']);
-        $pdf = PDF::loadView('pdf.bon-depotage', compact('depotage'));
-        $filename = 'BD-' . date('Ymd') . '-' . $depotage->id . '.pdf';
-        $path = storage_path('app/public/documents/' . $filename);
-        File::ensureDirectoryExists(dirname($path));
-        $pdf->save($path);
-
-        $depotage->update(['document_pdf' => 'documents/' . $filename]);
+        $qty = app(MarketeurStockService::class)->getQuantite($userId, $produitId);
+        return response()->json(['quantite' => $qty]);
     }
 
-    private function generateChargementPDF($chargement)
+    // Point 9 — PDF avec logging d'erreur
+    private function generateDepotagePDF($depotage): bool
     {
-        $chargement->load(['produit', 'cuve']);
-        $pdf = PDF::loadView('pdf.bon-chargement', compact('chargement'));
-        $filename = 'BC-' . date('Ymd') . '-' . $chargement->id . '.pdf';
-        $path = storage_path('app/public/documents/' . $filename);
-        File::ensureDirectoryExists(dirname($path));
-        $pdf->save($path);
-
-        $chargement->update(['document_pdf' => 'documents/' . $filename]);
+        try {
+            $depotage->load(['produit', 'cuve', 'user', 'operationsCreux.produit']);
+            $pdf = PDF::loadView('pdf.bon-depotage', compact('depotage'));
+            $filename = 'BD-' . date('Ymd') . '-' . $depotage->id . '.pdf';
+            $path = storage_path('app/public/documents/' . $filename);
+            File::ensureDirectoryExists(dirname($path));
+            $pdf->save($path);
+            $depotage->update(['document_pdf' => 'documents/' . $filename]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Échec génération PDF dépotage #' . $depotage->id . ' : ' . $e->getMessage());
+            return false;
+        }
     }
 
-    private function generateCessionPDF($cession)
+    private function generateChargementPDF($chargement): bool
     {
-        $cession->load(['produit', 'cuve', 'cedant', 'beneficiaire']);
-        $pdf = PDF::loadView('pdf.bon-cession', compact('cession'));
-        $filename = 'CESSION-' . date('Ymd') . '-' . $cession->id . '.pdf';
-        $path = storage_path('app/public/documents/' . $filename);
-        File::ensureDirectoryExists(dirname($path));
-        $pdf->save($path);
+        try {
+            $chargement->load(['produit', 'cuve']);
+            $pdf = PDF::loadView('pdf.bon-chargement', compact('chargement'));
+            $filename = 'BC-' . date('Ymd') . '-' . $chargement->id . '.pdf';
+            $path = storage_path('app/public/documents/' . $filename);
+            File::ensureDirectoryExists(dirname($path));
+            $pdf->save($path);
+            $chargement->update(['document_pdf' => 'documents/' . $filename]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Échec génération PDF chargement #' . $chargement->id . ' : ' . $e->getMessage());
+            return false;
+        }
+    }
 
-        $cession->update(['document_pdf' => 'documents/' . $filename]);
+    private function generateCessionPDF($cession): bool
+    {
+        try {
+            $cession->load(['produit', 'cuve', 'cedant', 'beneficiaire']);
+            $pdf = PDF::loadView('pdf.bon-cession', compact('cession'));
+            $filename = 'CESSION-' . date('Ymd') . '-' . $cession->id . '.pdf';
+            $path = storage_path('app/public/documents/' . $filename);
+            File::ensureDirectoryExists(dirname($path));
+            $pdf->save($path);
+            $cession->update(['document_pdf' => 'documents/' . $filename]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Échec génération PDF cession #' . $cession->id . ' : ' . $e->getMessage());
+            return false;
+        }
     }
 }

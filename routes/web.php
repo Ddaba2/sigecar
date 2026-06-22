@@ -62,6 +62,9 @@ Route::prefix('gestionnaire')->name('gestionnaire.')->middleware(['auth', 'role:
     Route::get('/cession/create', [GestionnaireController::class, 'createCession'])->name('cession.create');
     Route::post('/cession', [GestionnaireController::class, 'storeCession'])->name('cession.store');
 
+    // Point 1 — stock logique d'un opérateur pour le formulaire cession
+    Route::get('/api/operator-stock/{userId}/{produitId}', [GestionnaireController::class, 'operatorStock'])->name('api.operator-stock');
+
     Route::get('/stocks', [GestionnaireController::class, 'stocks'])->name('stocks');
     Route::get('/stocks/tous', [GestionnaireController::class, 'stocksTous'])->name('stocks.tous');
     Route::get('/rapports', [GestionnaireController::class, 'rapports'])->name('rapports');
@@ -74,10 +77,15 @@ Route::prefix('gestionnaire')->name('gestionnaire.')->middleware(['auth', 'role:
 Route::prefix('marketeur')->name('marketeur.')->middleware(['auth', 'role:marketeur'])->group(function () {
     Route::get('/', [MarketeurController::class, 'dashboard'])->name('dashboard');
     Route::get('/operations', [MarketeurController::class, 'operations'])->name('operations');
+    Route::get('/operations/export', [MarketeurController::class, 'exportOperationsCsv'])->name('operations.export');
     Route::get('/cessions', [MarketeurController::class, 'cessions'])->name('cessions');
+    Route::get('/cessions/export', [MarketeurController::class, 'exportCessionsCsv'])->name('cessions.export');
     Route::get('/cessions/nouvelle', [MarketeurController::class, 'createCession'])->name('cession.create');
     Route::post('/cessions', [MarketeurController::class, 'storeCession'])->name('cession.store');
     Route::get('/cessions/{id}', [MarketeurController::class, 'showCession'])->name('cession.show');
+    Route::get('/document/{type}/{id}', [MarketeurController::class, 'downloadDocument'])->name('document.download');
+    // Point 12 — régénération d'un PDF de cession
+    Route::get('/document/{type}/{id}/regenerate', [MarketeurController::class, 'regenerateDocument'])->name('document.regenerate');
     Route::get('/parametres', [MarketeurController::class, 'settings'])->name('settings');
     Route::get('/api/cuve-stock/{id}', [MarketeurController::class, 'cuveStock'])->name('api.cuve-stock');
     Route::get('/api/stock-produit/{produitId}', [MarketeurController::class, 'stockProduit'])->name('api.stock-produit');
