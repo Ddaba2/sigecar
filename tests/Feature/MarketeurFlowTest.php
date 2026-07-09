@@ -124,12 +124,12 @@ class MarketeurFlowTest extends TestCase
         $operationsResponse = $this->actingAs($user)->get('/marketeur/operations');
         $operationsResponse->assertStatus(200);
         $operationsResponse->assertSee('Mes Opérations');
-        $operationsResponse->assertSee('TOTAL DEPOTAGES (MOIS)');
+        $operationsResponse->assertSee('TOTAL DÉPOTAGES (MOIS)');
 
         $cessionsResponse = $this->actingAs($user)->get('/marketeur/cessions');
         $cessionsResponse->assertStatus(200);
         $cessionsResponse->assertSee('Mes Cessions');
-        $cessionsResponse->assertSee('TOTAL TRANSFÉRER (MOIS)');
+        $cessionsResponse->assertSee('TOTAL TRANSFÉRÉ (MOIS)');
 
         $detailResponse = $this->actingAs($user)->get('/marketeur/cessions/' . $cession->id);
         $detailResponse->assertStatus(200);

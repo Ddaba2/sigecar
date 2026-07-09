@@ -6,8 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Modèle pour le suivi des stocks
- * Enregistre les mouvements de stock pour l'inventaire
+ * @deprecated Non utilisé. Le stock logique est géré par MarketeurStock + MarketeurStockService.
+ *             Le stock physique est géré via Cuve::niveau_actuel.
+ *             Ce modèle peut être supprimé si la migration stocks n'est plus nécessaire.
  */
 class Stock extends Model
 {

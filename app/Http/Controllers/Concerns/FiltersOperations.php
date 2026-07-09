@@ -17,4 +17,14 @@ trait FiltersOperations
             $query->where($column, '>=', now()->subDays($days));
         }
     }
+
+    protected function applyDateRangeFilter($query, string $column, ?string $debut, ?string $fin): void
+    {
+        if ($debut) {
+            $query->whereDate($column, '>=', $debut);
+        }
+        if ($fin) {
+            $query->whereDate($column, '<=', $fin);
+        }
+    }
 }

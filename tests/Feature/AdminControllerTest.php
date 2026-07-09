@@ -24,7 +24,7 @@ class AdminControllerTest extends TestCase
         $response = $this->actingAs($admin)->get('/admin');
 
         $response->assertStatus(200);
-        $response->assertViewIs('Admin.dashboard');
+        $response->assertViewIs('admin.dashboard');
     }
 
     /** @test */
@@ -41,7 +41,7 @@ class AdminControllerTest extends TestCase
         $response = $this->actingAs($admin)->get('/admin/users');
 
         $response->assertStatus(200);
-        $response->assertViewIs('Admin.users');
+        $response->assertViewIs('admin.users');
         $response->assertViewHas('users');
     }
 
@@ -59,7 +59,7 @@ class AdminControllerTest extends TestCase
         $response = $this->actingAs($admin)->get('/admin/users/add');
 
         $response->assertStatus(200);
-        $response->assertViewIs('Admin.add-user');
+        $response->assertViewIs('admin.add-user');
     }
 
     /** @test */
@@ -144,7 +144,7 @@ class AdminControllerTest extends TestCase
         $response = $this->actingAs($admin)->get("/admin/users/{$user->id}/edit");
 
         $response->assertStatus(200);
-        $response->assertViewIs('Admin.edit-user');
+        $response->assertViewIs('admin.edit-user');
         $response->assertViewHas('user', $user);
     }
 
@@ -192,7 +192,7 @@ class AdminControllerTest extends TestCase
     }
 
     /** @test */
-    public function it_deletes_user()
+    public function it_desactivates_protected_user_instead_of_deleting()
     {
         $admin = User::create([
             'name' => 'Admin User',
@@ -215,7 +215,8 @@ class AdminControllerTest extends TestCase
         $response->assertRedirect('/admin/users');
         $response->assertSessionHas('success');
 
-        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        // Les rôles protégés (admin, gestionnaire, marketeur) sont désactivés, jamais supprimés
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'status' => 'inactive']);
     }
 
     /** @test */

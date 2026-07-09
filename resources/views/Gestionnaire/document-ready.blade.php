@@ -9,6 +9,12 @@
     <div class="gv-alert gv-alert-success">{{ $message }}</div>
 @endif
 
+@if(!empty($pdfWarning))
+    <div class="gv-alert gv-alert-warning" style="margin-top:10px;">
+        <i class="fas fa-exclamation-triangle"></i> {{ $pdfWarning }}
+    </div>
+@endif
+
 <div class="gv-card" style="max-width:600px;margin-top:20px;">
     <div class="gv-card-header" style="text-transform:uppercase;">
         <i class="fas fa-file-pdf"></i>
@@ -16,12 +22,14 @@
     </div>
     <div style="padding:20px;">
         <p><strong>Référence :</strong> {{ $reference }}</p>
-        <p>Le document PDF a été généré automatiquement.</p>
+        <p>{{ empty($pdfWarning) ? 'Le document PDF a été généré automatiquement.' : 'Le document PDF n\'est pas encore disponible.' }}</p>
         <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;">
+            @if(empty($pdfWarning))
             <a href="{{ $documentUrl }}" class="gv-btn-blue" style="display:inline-flex;align-items:center;">
                 <i class="fas fa-download" style="margin-right:8px;"></i>
                 Télécharger le PDF
             </a>
+            @endif
             <a href="{{ route('gestionnaire.operations') }}" class="gv-btn-red" style="display:inline-flex;align-items:center;">
                 <i class="fas fa-arrow-left" style="margin-right:8px;"></i>
                 Voir mes opérations

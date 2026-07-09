@@ -6,8 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Modèle pour les documents générés (PDF, etc.)
- * Stocke les références aux fichiers générés pour les opérations
+ * @deprecated Non utilisé. Les PDFs sont stockés directement sur chaque modèle d'opération
+ *             via le champ `document_pdf` (Depotage, Chargement, Cession).
+ *             Ce modèle peut être supprimé si la migration documents n'est plus nécessaire.
  */
 class Document extends Model
 {

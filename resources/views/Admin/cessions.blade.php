@@ -17,4 +17,5 @@
         @endforeach
     </tbody>
 </table>
+<div style="margin-top:12px;">{{ $cessions->links() }}</div>
 @endsection

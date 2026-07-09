@@ -17,6 +17,7 @@
         @endforeach
     </tbody>
 </table>
+<div style="margin-top:12px;">{{ $chargements->links() }}</div>
 <style>
     .tag { padding:2px 8px; color:#fff; font-size:18px; font-family:Georgia,serif; border-radius:3px; }
     .tag.ok { background:#31b952; }

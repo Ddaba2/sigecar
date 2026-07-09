@@ -15,9 +15,9 @@ enum OperationStatus: string
         return match ($this) {
             self::SousDouane => 'Sous douane',
             self::Acquitte   => 'Acquitté',
-            self::Confirmed  => 'Acquitté',
-            self::Completed  => 'Acquitté',
-            self::Termine    => 'Acquitté',
+            self::Confirmed  => 'Confirmé',
+            self::Completed  => 'Complété',
+            self::Termine    => 'Terminé',
         };
     }
 

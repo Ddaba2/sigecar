@@ -12,7 +12,11 @@ use App\Models\Cuve;
 use App\Models\Produit;
 use App\Models\User;
 use App\Models\OperationCreux;
+use App\Enums\OperationStatus;
+use App\Services\CsvExporter;
 use App\Services\MarketeurStockService;
+use App\Services\ReportService;
+use App\Services\VolumeCorrection;
 use App\Http\Controllers\Concerns\FiltersOperations;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -50,13 +54,38 @@ class GestionnaireController extends Controller
      * Affiche la liste des opérations (dépotages et chargements)
      * @return \Illuminate\View\View
      */
-    public function operations()
+    public function operations(Request $request)
     {
-        $depotages = Depotage::with(['produit', 'cuve'])->latest()->paginate(10);
-        $chargements = Chargement::with(['produit', 'cuve'])->latest()->paginate(10);
-        $cessions = Cession::with(['cedant', 'beneficiaire', 'produit', 'cuve'])->latest()->paginate(10);
+        $type      = $request->input('type', 'tous');
+        $dateDebut = $request->input('date_debut');
+        $dateFin   = $request->input('date_fin');
 
-        return view('gestionnaire.operations', compact('depotages', 'chargements', 'cessions'));
+        $depotages   = collect();
+        $chargements = collect();
+        $cessions    = collect();
+
+        if ($type === 'tous' || $type === 'depotage') {
+            $q = Depotage::with(['produit', 'cuve'])->latest();
+            $this->applyDateRangeFilter($q, 'date_operation', $dateDebut, $dateFin);
+            $depotages = $q->paginate(10)->withQueryString();
+        }
+
+        if ($type === 'tous' || $type === 'chargement') {
+            $q = Chargement::with(['produit', 'cuve'])->latest();
+            $this->applyDateRangeFilter($q, 'date_operation', $dateDebut, $dateFin);
+            $chargements = $q->paginate(10)->withQueryString();
+        }
+
+        if ($type === 'tous' || $type === 'cession') {
+            $q = Cession::with(['cedant', 'beneficiaire', 'produit', 'cuve'])->latest();
+            $this->applyDateRangeFilter($q, 'date_cession', $dateDebut, $dateFin);
+            $cessions = $q->paginate(10)->withQueryString();
+        }
+
+        return view('gestionnaire.operations', compact(
+            'depotages', 'chargements', 'cessions',
+            'type', 'dateDebut', 'dateFin'
+        ));
     }
 
     /**
@@ -120,7 +149,7 @@ class GestionnaireController extends Controller
                 'chauffeur_tel' => $validated['chauffeur_tel'] ?? null,
                 'declaration_douane' => $validated['declaration_douane'] ?? null,
                 'bureau_douane' => $validated['bureau_douane'] ?? null,
-                'status' => 'sous_douane',
+                'status' => OperationStatus::SousDouane->value,
                 'created_by' => Auth::id(),
             ]);
 
@@ -142,8 +171,8 @@ class GestionnaireController extends Controller
 
             $cuve = Cuve::find($validated['cuve_destination_id']);
             $cuve->niveau_actuel += $volumeCorrige;
-            if ($depotage->status === 'sous_douane') {
-                $cuve->type_douane = 'sous_douane';
+            if ($depotage->status === OperationStatus::SousDouane->value) {
+                $cuve->type_douane = OperationStatus::SousDouane->value;
             }
             if (! $cuve->user_id) {
                 $cuve->user_id = $operator->id;
@@ -154,14 +183,14 @@ class GestionnaireController extends Controller
 
             DB::commit();
 
-            // Générer PDF
-            $this->generateDepotagePDF($depotage);
+            $pdfOk = $this->generateDepotagePDF($depotage);
 
             return view('gestionnaire.document-ready', [
                 'operationType' => 'Dépotage',
                 'reference' => $depotage->numero_depotage,
                 'documentUrl' => route('gestionnaire.document.download', ['type' => 'depotage', 'id' => $depotage->id]),
-                'message' => 'Dépotage enregistré et rapport PDF généré.',
+                'message' => 'Dépotage enregistré avec succès.',
+                'pdfWarning' => $pdfOk ? null : 'Le document PDF n\'a pas pu être généré. Contactez l\'administrateur.',
             ]);
 
         } catch (\Exception $e) {
@@ -175,21 +204,21 @@ class GestionnaireController extends Controller
      */
     public function acquitterDepotage(Depotage $depotage)
     {
-        if ($depotage->status !== 'sous_douane') {
+        if ($depotage->status !== OperationStatus::SousDouane->value) {
             return back()->with('error', 'Ce dépotage n\'est pas en attente de douane.');
         }
 
         DB::transaction(function () use ($depotage) {
-            $depotage->update(['status' => 'acquitte']);
+            $depotage->update(['status' => OperationStatus::Acquitte->value]);
 
             $cuveId = $depotage->cuve_destination_id;
             $encoreSousDouane = Depotage::query()
                 ->where('cuve_destination_id', $cuveId)
-                ->where('status', 'sous_douane')
+                ->where('status', OperationStatus::SousDouane->value)
                 ->exists();
 
             if (! $encoreSousDouane) {
-                Cuve::whereKey($cuveId)->update(['type_douane' => 'acquitte']);
+                Cuve::whereKey($cuveId)->update(['type_douane' => OperationStatus::Acquitte->value]);
             }
         });
 
@@ -269,7 +298,7 @@ class GestionnaireController extends Controller
                 'chauffeur_nom' => $validated['chauffeur_nom'],
                 'chauffeur_permis' => $validated['chauffeur_permis'],
                 'capacite_camion' => $validated['capacite_camion'],
-                'status' => 'acquitte',
+                'status' => OperationStatus::Acquitte->value,
                 'created_by' => Auth::id(),
             ]);
 
@@ -286,13 +315,14 @@ class GestionnaireController extends Controller
 
             DB::commit();
 
-            $this->generateChargementPDF($chargement);
+            $pdfOk = $this->generateChargementPDF($chargement);
 
             return view('gestionnaire.document-ready', [
                 'operationType' => 'Chargement',
                 'reference' => $chargement->numero_chargement,
                 'documentUrl' => route('gestionnaire.document.download', ['type' => 'chargement', 'id' => $chargement->id]),
-                'message' => 'Chargement enregistré et rapport PDF généré.',
+                'message' => 'Chargement enregistré avec succès.',
+                'pdfWarning' => $pdfOk ? null : 'Le document PDF n\'a pas pu être généré. Contactez l\'administrateur.',
             ]);
 
         } catch (\Exception $e) {
@@ -375,15 +405,20 @@ class GestionnaireController extends Controller
                 'temperature' => $validated['temperature'] ?? 15,
                 'prix_unitaire' => $validated['prix_unitaire'] ?? 0,
                 'montant_total' => $montantTotal,
-                'status' => 'confirmed',
+                'status' => OperationStatus::Confirmed->value,
                 'created_by' => Auth::id(),
             ]);
 
             DB::commit();
 
-            $this->generateCessionPDF($cession);
+            $pdfOk = $this->generateCessionPDF($cession);
 
-            return redirect()->route('gestionnaire.operations')->with('success', 'Cession enregistrée avec succès');
+            $redirect = redirect()->route('gestionnaire.operations')->with('success', 'Cession enregistrée avec succès.');
+            if (! $pdfOk) {
+                $redirect = $redirect->with('warning', 'Le document PDF n\'a pas pu être généré. Vous pouvez le régénérer depuis la liste.');
+            }
+
+            return $redirect;
 
         } catch (\RuntimeException $e) {
             DB::rollBack();
@@ -406,7 +441,7 @@ class GestionnaireController extends Controller
     {
         $totalCapacite = (int) Cuve::sum('capacite_totale');
         $totalStock = (int) Cuve::sum('niveau_actuel');
-        $sousDouaneVol = (int) Depotage::where('status', 'sous_douane')->sum('volume_corrige');
+        $sousDouaneVol = (int) Depotage::where('status', OperationStatus::SousDouane->value)->sum('volume_corrige');
         $acquitteVol = max(0, $totalStock - $sousDouaneVol);
 
         return compact('totalCapacite', 'totalStock', 'sousDouaneVol', 'acquitteVol');
@@ -483,7 +518,7 @@ class GestionnaireController extends Controller
 
         $cessionsPending = (int) Cession::where('status', 'pending')->count();
 
-        $famillesRapport = $this->buildRapportFamilles($day, $cuves);
+        $famillesRapport = app(ReportService::class)->buildFamillesRapport($day, $cuves);
 
         return view('gestionnaire.rapports', compact(
             'depotagesJour',
@@ -505,90 +540,29 @@ class GestionnaireController extends Controller
         ));
     }
 
-    protected function buildRapportFamilles(Carbon $day, $cuves): array
-    {
-        $produits = \App\Models\Produit::where('status', 'active')->get();
-
-        $out = [];
-        foreach ($produits as $produit) {
-            $cuveList = $cuves->filter(fn (Cuve $c) => $c->produit_id === $produit->id);
-
-            $entrees = (int) Depotage::query()
-                ->whereDate('date_operation', $day)
-                ->where('produit_id', $produit->id)
-                ->sum('volume_corrige');
-
-            $sorties = (int) Chargement::query()
-                ->whereDate('date_operation', $day)
-                ->where('produit_id', $produit->id)
-                ->sum('volume_corrige');
-
-            $stockCuves = (int) $cuveList->sum('niveau_actuel');
-            $capSum = (int) $cuveList->sum('capacite_totale');
-            $cap = max(1, $capSum);
-            $pct = $cuveList->isEmpty() ? 0 : min(100, (int) round(($stockCuves / $cap) * 100));
-
-            $out[] = [
-                'title' => $produit->nom,
-                'badge' => $produit->code ?? strtoupper($produit->type ?? substr($produit->nom, 0, 5)),
-                'entrees_jour' => $entrees,
-                'sorties_jour' => $sorties,
-                'stock_cuves' => $stockCuves,
-                'capacite_totale' => $capSum,
-                'pct_remplissage' => $pct,
-            ];
-        }
-
-        return $out;
-    }
-
     public function exportRapportCsv(Request $request): StreamedResponse
     {
         $day = $request->filled('date')
             ? Carbon::parse($request->string('date'))->startOfDay()
             : now()->startOfDay();
 
-        $filename = 'sigecar-rapport-' . $day->format('Y-m-d') . '.csv';
-
-        return response()->streamDownload(function () use ($day) {
-            $out = fopen('php://output', 'w');
-            fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($out, ['Type', 'Date', 'Référence', 'Produit', 'Volume (L)', 'Détail'], ';');
-
+        $rows = (function () use ($day) {
             foreach (Depotage::with('produit')->whereDate('date_operation', $day)->orderBy('date_operation')->cursor() as $d) {
-                fputcsv($out, [
-                    'Dépotage',
-                    $d->date_operation->format('Y-m-d H:i'),
-                    $d->numero_depotage,
-                    $d->produit->nom ?? '',
-                    $d->volume_brut,
-                    $d->fournisseur,
-                ], ';');
+                yield ['Dépotage', $d->date_operation->format('Y-m-d H:i'), $d->numero_depotage, $d->produit->nom ?? '', $d->volume_brut, $d->fournisseur];
             }
             foreach (Chargement::with('produit')->whereDate('date_operation', $day)->orderBy('date_operation')->cursor() as $c) {
-                fputcsv($out, [
-                    'Chargement',
-                    $c->date_operation->format('Y-m-d H:i'),
-                    $c->numero_chargement,
-                    $c->produit->nom ?? '',
-                    $c->volume_brut,
-                    $c->client_nom,
-                ], ';');
+                yield ['Chargement', $c->date_operation->format('Y-m-d H:i'), $c->numero_chargement, $c->produit->nom ?? '', $c->volume_brut, $c->client_nom];
             }
             foreach (Cession::with('produit')->whereDate('date_cession', $day)->orderBy('date_cession')->cursor() as $ces) {
-                fputcsv($out, [
-                    'Cession',
-                    $ces->date_cession->format('Y-m-d H:i'),
-                    $ces->numero_cession,
-                    $ces->produit->nom ?? '',
-                    $ces->volume,
-                    '',
-                ], ';');
+                yield ['Cession', $ces->date_cession->format('Y-m-d H:i'), $ces->numero_cession, $ces->produit->nom ?? '', $ces->volume, ''];
             }
-            fclose($out);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        })();
+
+        return CsvExporter::stream(
+            'sigecar-rapport-' . $day->format('Y-m-d') . '.csv',
+            ['Type', 'Date', 'Référence', 'Produit', 'Volume (L)', 'Détail'],
+            $rows
+        );
     }
 
     public function exportRapportPdf(Request $request)
@@ -601,7 +575,7 @@ class GestionnaireController extends Controller
         $chargementsJour = Chargement::with(['produit', 'cuve'])->whereDate('date_operation', $day)->orderBy('date_operation')->get();
         $cessionsJour = Cession::with(['produit', 'cedant', 'beneficiaire'])->whereDate('date_cession', $day)->orderBy('date_cession')->get();
         $cuves = Cuve::with('produit')->get();
-        $famillesRapport = $this->buildRapportFamilles($day, $cuves);
+        $famillesRapport = app(ReportService::class)->buildFamillesRapport($day, $cuves);
 
         $pdf = Pdf::loadView('pdf.rapport-journalier', compact(
             'day',
@@ -614,16 +588,9 @@ class GestionnaireController extends Controller
         return $pdf->download('sigecar-rapport-' . $day->format('Y-m-d') . '.pdf');
     }
 
-    private function calculerVolumeCorrige($volumeBrut, $temperature)
+    private function calculerVolumeCorrige($volumeBrut, $temperature): int
     {
-        // Facteur de correction simplifié (ASTM 54B)
-        $temperatureReference = 15;
-        $coefficientDilatation = 0.00095; // Pour les produits pétroliers légers
-
-        $variation = $temperature - $temperatureReference;
-        $correction = 1 + ($coefficientDilatation * $variation);
-
-        return round($volumeBrut / $correction);
+        return VolumeCorrection::corriger($volumeBrut, $temperature);
     }
 
     // Point 1 — stock logique de l'opérateur par produit (utilisé par le formulaire cession)

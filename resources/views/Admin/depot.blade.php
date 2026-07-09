@@ -43,6 +43,7 @@
         @endforeach
     </tbody>
 </table>
+<div style="margin-top:12px;">{{ $depotages->links() }}</div>
 <style>
     .admin-subtitle { font-size: 34px; font-weight: 700; margin-bottom: 12px; }
     .cuves-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }

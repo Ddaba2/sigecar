@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
-use App\Models\Log;
 use App\Models\Cuve;
 use App\Models\Depotage;
 use App\Models\Chargement;
@@ -72,7 +71,7 @@ class AdminController extends Controller
 
         $operations = $depotages->concat($chargements)->sortByDesc('date')->take(5);
 
-        return view('Admin.dashboard', compact('totalUsers', 'activeUsers', 'inactiveUsers', 'blockedUsers', 'stockLevels', 'operations'));
+        return view('admin.dashboard', compact('totalUsers', 'activeUsers', 'inactiveUsers', 'blockedUsers', 'stockLevels', 'operations'));
     }
 
     public function users()
@@ -84,13 +83,13 @@ class AdminController extends Controller
         $activeUsers = $users->where('status', 'active')->count();
         $inactiveUsers = $users->where('status', 'inactive')->count();
 
-        return view('Admin.users', compact('users', 'totalUsers', 'activeUsers', 'inactiveUsers'));
+        return view('admin.users', compact('users', 'totalUsers', 'activeUsers', 'inactiveUsers'));
     }
 
     public function addUser()
     {
         $this->ensureAdmin();
-        return view('Admin.add-user');
+        return view('admin.add-user');
     }
 
     public function storeUser(Request $request)
@@ -138,7 +137,7 @@ class AdminController extends Controller
     {
         $this->ensureAdmin();
         $user = User::findOrFail($id);
-        return view('Admin.edit-user', compact('user'));
+        return view('admin.edit-user', compact('user'));
     }
 
     public function updateUser(Request $request, $id)
@@ -214,39 +213,33 @@ class AdminController extends Controller
         // Récupérer toutes les cuves avec leurs produits
         $cuves = Cuve::with('produit')->get();
 
-        // Récupérer les derniers dépôts (5 derniers)
         $depotages = Depotage::with(['produit', 'cuve'])
             ->orderBy('date_operation', 'desc')
-            ->limit(5)
-            ->get();
+            ->paginate(15);
 
-        return view('Admin.depot', compact('cuves', 'depotages'));
+        return view('admin.depot', compact('cuves', 'depotages'));
     }
 
     public function transport()
     {
         $this->ensureAdmin();
 
-        // Récupérer les derniers chargements (5 derniers)
         $chargements = Chargement::with(['produit', 'cuve'])
             ->orderBy('date_operation', 'desc')
-            ->limit(5)
-            ->get();
+            ->paginate(15);
 
-        return view('Admin.transport', compact('chargements'));
+        return view('admin.transport', compact('chargements'));
     }
 
     public function cessions()
     {
         $this->ensureAdmin();
 
-        // Récupérer les dernières cessions (5 dernières)
         $cessions = Cession::with(['produit', 'cuve', 'cedant', 'beneficiaire'])
             ->orderBy('date_cession', 'desc')
-            ->limit(5)
-            ->get();
+            ->paginate(15);
 
-        return view('Admin.cessions', compact('cessions'));
+        return view('admin.cessions', compact('cessions'));
     }
 
     /**
@@ -254,6 +247,6 @@ class AdminController extends Controller
      */
     private function isProtectedRole(string $role): bool
     {
-        return in_array($role, ['admin', 'operateur', 'gestionnaire']);
+        return in_array($role, ['admin', 'marketeur', 'gestionnaire']);
     }
 }

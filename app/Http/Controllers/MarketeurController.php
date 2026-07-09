@@ -9,7 +9,10 @@ use App\Models\Chargement;
 use App\Models\Cuve;
 use App\Models\User;
 use App\Models\Produit;
+use App\Enums\OperationStatus;
+use App\Services\CsvExporter;
 use App\Services\MarketeurStockService;
+use App\Services\VolumeCorrection;
 use App\Http\Controllers\Concerns\FiltersOperations;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -166,7 +169,7 @@ class MarketeurController extends Controller
             ->sum('volume_corrige');
 
         $sousDouaneActuel = (int) Depotage::where('user_id', $user->id)
-            ->where('status', 'sous_douane')
+            ->where('status', OperationStatus::SousDouane->value)
             ->sum('volume_corrige');
 
         // Stock total opérateur pour le calcul du pourcentage sous douane
@@ -274,7 +277,7 @@ class MarketeurController extends Controller
         DB::beginTransaction();
         try {
             $temp = $validated['temperature'] ?? 15;
-            $volumeCorrige = (int) round($validated['volume'] * (1 + (15 - $temp) * 0.0008));
+            $volumeCorrige = VolumeCorrection::corriger($validated['volume'], $temp);
 
             app(MarketeurStockService::class)->transfer(
                 $user->id,
@@ -295,7 +298,7 @@ class MarketeurController extends Controller
                 'temperature' => $temp,
                 'prix_unitaire' => 0,
                 'montant_total' => 0,
-                'status' => 'confirmed',
+                'status' => OperationStatus::Confirmed->value,
                 'created_by' => Auth::id(),
             ]);
 
@@ -380,14 +383,9 @@ class MarketeurController extends Controller
             $query->where('produit_id', $request->produit_id);
         }
 
-        $filename = 'cessions-' . now()->format('Y-m-d') . '.csv';
-
-        return response()->streamDownload(function () use ($query) {
-            $out = fopen('php://output', 'w');
-            fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($out, ['Date', 'Référence', 'Produit', 'Volume (L)', 'Vol. Corrigé (L)', 'Bénéficiaire', 'Statut'], ';');
+        $rows = (static function () use ($query) {
             foreach ($query->cursor() as $c) {
-                fputcsv($out, [
+                yield [
                     $c->date_cession->format('Y-m-d H:i'),
                     $c->numero_cession,
                     $c->produit->nom ?? '—',
@@ -395,10 +393,15 @@ class MarketeurController extends Controller
                     $c->volume_corrige,
                     $c->beneficiaire ? $c->beneficiaire->operatorName() : '—',
                     $c->status,
-                ], ';');
+                ];
             }
-            fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        })();
+
+        return CsvExporter::stream(
+            'cessions-' . now()->format('Y-m-d') . '.csv',
+            ['Date', 'Référence', 'Produit', 'Volume (L)', 'Vol. Corrigé (L)', 'Bénéficiaire', 'Statut'],
+            $rows
+        );
     }
 
     public function exportOperationsCsv(Request $request): StreamedResponse
@@ -427,44 +430,29 @@ class MarketeurController extends Controller
 
         $filename = 'operations-' . now()->format('Y-m-d') . '.csv';
 
-        return response()->streamDownload(function () use ($userId, $depotagesQ, $chargementsQ, $cessionsQ, $type) {
-            $out = fopen('php://output', 'w');
-            fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($out, ['Date', 'Type', 'Référence', 'Produit', 'Volume Brut (L)', 'Vol. Corrigé (L)', 'Statut'], ';');
-
+        $rows = (static function () use ($userId, $depotagesQ, $chargementsQ, $cessionsQ, $type) {
             if (in_array($type, ['tous', 'depotage'])) {
                 foreach ($depotagesQ->cursor() as $d) {
-                    fputcsv($out, [
-                        $d->date_operation->format('Y-m-d H:i'),
-                        'Dépotage', $d->numero_depotage,
-                        $d->produit->nom ?? '—',
-                        $d->volume_brut, $d->volume_corrige, $d->status,
-                    ], ';');
+                    yield [$d->date_operation->format('Y-m-d H:i'), 'Dépotage', $d->numero_depotage, $d->produit->nom ?? '—', $d->volume_brut, $d->volume_corrige, $d->status];
                 }
             }
             if (in_array($type, ['tous', 'chargement'])) {
                 foreach ($chargementsQ->cursor() as $c) {
-                    fputcsv($out, [
-                        $c->date_operation->format('Y-m-d H:i'),
-                        'Chargement', $c->numero_chargement,
-                        $c->produit->nom ?? '—',
-                        $c->volume_brut, $c->volume_corrige, $c->status,
-                    ], ';');
+                    yield [$c->date_operation->format('Y-m-d H:i'), 'Chargement', $c->numero_chargement, $c->produit->nom ?? '—', $c->volume_brut, $c->volume_corrige, $c->status];
                 }
             }
             if (in_array($type, ['tous', 'cession'])) {
                 foreach ($cessionsQ->cursor() as $ces) {
-                    fputcsv($out, [
-                        $ces->date_cession->format('Y-m-d H:i'),
-                        $ces->cedant_id === $userId ? 'Cession émise' : 'Cession reçue',
-                        $ces->numero_cession,
-                        $ces->produit->nom ?? '—',
-                        $ces->volume, $ces->volume_corrige, $ces->status,
-                    ], ';');
+                    yield [$ces->date_cession->format('Y-m-d H:i'), $ces->cedant_id === $userId ? 'Cession émise' : 'Cession reçue', $ces->numero_cession, $ces->produit->nom ?? '—', $ces->volume, $ces->volume_corrige, $ces->status];
                 }
             }
-            fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        })();
+
+        return CsvExporter::stream(
+            $filename,
+            ['Date', 'Type', 'Référence', 'Produit', 'Volume Brut (L)', 'Vol. Corrigé (L)', 'Statut'],
+            $rows
+        );
     }
 
     // Point 9 — log l'erreur et retourne bool pour informer l'appelant
